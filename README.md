@@ -185,12 +185,12 @@ LOG_LEVEL=info
 
 ```
 hft-trading-app/
-├── README.md                   # This file
+├── README.md                   # This file (main entry point)
 ├── docker-compose.yml          # Full stack orchestration
+├── Makefile                    # Docker & test automation
 ├── requirements.txt            # Python test dependencies
 ├── scripts/
-│   ├── setup_test_db.sh       # PostgreSQL initialization
-│   └── conan/                 # (Generated - ignored)
+│   └── setup_test_db.sh       # PostgreSQL initialization
 ├── tests/
 │   ├── conftest.py            # Pytest fixtures
 │   ├── test_grpc_integration.py
@@ -198,7 +198,7 @@ hft-trading-app/
 │   ├── test_performance.py
 │   └── test_load.py
 └── docs/
-    └── INTEGRATION_GUIDE.md    # Detailed integration testing guide
+    └── README-INTEGRATION.md   # Detailed integration testing guide
 ```
 
 ## Deployment
@@ -227,7 +227,7 @@ docker-compose up -d
 
 ## Documentation
 
-- **Integration Testing**: `README-INTEGRATION.md`
+- **Integration Testing**: `docs/README-INTEGRATION.md`
 - **C++ Engine**: `../ml-trading-app-cpp/docs/`
 - **Python Backend**: `../ml-trading-app-py/docs/`
 - **API Reference**: See Swagger UI at `/docs` (running instance)
