@@ -18,13 +18,14 @@ docker-compose up -d
 # 2. Wait for services to be healthy
 sleep 10
 
-# 3. Setup test database (if running integration tests)
-bash scripts/setup_test_db.sh
-
-# 4. Access the application
+# 3. Access the application
 # - Python Backend API: http://localhost:8000
 # - API Docs: http://localhost:8000/docs
 # - gRPC Engine: localhost:50051
+
+# 4. Run the Interactive TUI (in another terminal)
+cd ../ml-trading-app-py
+python -m frontend.tui
 
 # 5. Run integration tests
 python -m pytest tests/ -v
@@ -32,6 +33,23 @@ python -m pytest tests/ -v
 # 6. Shutdown
 docker-compose down
 ```
+
+### Interactive TUI
+
+The platform includes a rich, interactive Terminal User Interface (TUI) for trading:
+
+```bash
+python -m frontend.tui
+```
+
+Features:
+- User login and authentication
+- Place market and limit orders
+- View positions with real-time P&L
+- Monitor portfolio performance
+- Track order history
+
+See `docs/TUI_GUIDE.md` for detailed instructions.
 
 ## Architecture
 
@@ -227,6 +245,7 @@ docker-compose up -d
 
 ## Documentation
 
+- **Trading TUI**: `docs/TUI_GUIDE.md` - Interactive terminal interface for trading
 - **Integration Testing**: `docs/README-INTEGRATION.md`
 - **C++ Engine**: `../ml-trading-app-cpp/docs/`
 - **Python Backend**: `../ml-trading-app-py/docs/`
