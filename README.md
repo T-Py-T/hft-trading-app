@@ -23,33 +23,63 @@ sleep 10
 # - API Docs: http://localhost:8000/docs
 # - gRPC Engine: localhost:50051
 
-# 4. Run the Interactive TUI (in another terminal)
+# 4. Run the Modern Dashboard TUI (in another terminal)
 cd ../ml-trading-app-py
+python -m frontend.dashboard_tui
+
+# 5. Or run the Classic Menu TUI
 python -m frontend.tui
 
-# 5. Run integration tests
+# 6. Run integration tests
 python -m pytest tests/ -v
 
-# 6. Shutdown
+# 7. Shutdown
 docker-compose down
 ```
 
-### Interactive TUI
+### Interactive Interfaces
 
-The platform includes a rich, interactive Terminal User Interface (TUI) for trading:
+The platform includes two TUI options:
+
+#### Dashboard TUI (Recommended)
+
+Modern k9s/btop-style real-time dashboard:
 
 ```bash
+cd ../ml-trading-app-py
+python -m frontend.dashboard_tui
+```
+
+**Features:**
+- Real-time price charts (ASCII candlesticks)
+- Multi-widget dashboard:
+  - Price Chart (with ticker selection)
+  - Recent Orders (live updates)
+  - Open Positions (with P&L)
+  - Portfolio Summary (stats)
+- Auto-refresh every 5 seconds
+- Color-coded P&L (green/red)
+- Responsive layout
+
+See `docs/DASHBOARD_TUI_GUIDE.md` for full documentation.
+
+#### Menu TUI
+
+Traditional interactive menu:
+
+```bash
+cd ../ml-trading-app-py
 python -m frontend.tui
 ```
 
-Features:
-- User login and authentication
-- Place market and limit orders
-- View positions with real-time P&L
-- Monitor portfolio performance
-- Track order history
+**Features:**
+- User authentication
+- Place market/limit orders
+- View positions with P&L
+- Monitor portfolio
+- Track orders
 
-See `docs/TUI_GUIDE.md` for detailed instructions.
+See `docs/TUI_GUIDE.md` for details.
 
 ## Architecture
 
@@ -245,6 +275,7 @@ docker-compose up -d
 
 ## Documentation
 
+- **Dashboard TUI** (NEW): `docs/DASHBOARD_TUI_GUIDE.md` - Modern k9s/btop-style dashboard with charts
 - **Trading TUI**: `docs/TUI_GUIDE.md` - Interactive terminal interface for trading
 - **Integration Testing**: `docs/README-INTEGRATION.md`
 - **C++ Engine**: `../ml-trading-app-cpp/docs/`
