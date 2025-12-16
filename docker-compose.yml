@@ -54,6 +54,20 @@ services:
       retries: 3
     restart: unless-stopped
 
+  hft-frontend:
+    image: hft-frontend:latest
+    container_name: hft-frontend
+    stdin_open: true
+    tty: true
+    environment:
+      - BACKEND_URL=http://hft-backend:8000
+      - LOG_LEVEL=info
+    depends_on:
+      - hft-backend
+    networks:
+      - hft-network
+    restart: unless-stopped
+
 networks:
   hft-network:
     driver: bridge
