@@ -47,11 +47,6 @@ services:
       - hft-engine
     networks:
       - hft-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
     restart: unless-stopped
 
   hft-frontend:
