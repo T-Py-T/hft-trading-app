@@ -1,0 +1,244 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: hft-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - hft-network
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: hft-postgres
+    environment:
+      - POSTGRES_USER=trading_user
+      - POSTGRES_PASSWORD=trading_password
+      - POSTGRES_DB=trading_db
+    ports:
+      - "5432:5432"
+    networks:
+      - hft-network
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  hft-engine:
+    build:
+      context: ../ml-trading-app-cpp
+      dockerfile: Dockerfile.prod
+    container_name: hft-engine
+    ports:
+      - "50051:50051"
+      - "9001:9001"
+    environment:
+      - LOG_LEVEL=INFO
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: hft-nginx
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - hft-backend-1
+      - hft-backend-2
+      - hft-backend-3
+      - hft-backend-4
+      - hft-backend-5
+      - hft-backend-6
+      - hft-backend-7
+      - hft-backend-8
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-1:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-2:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-3:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-4:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-5:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-6:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-7:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-backend-8:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
+      - REDIS_URL=redis://hft-redis:6379/0
+      - GRPC_ENGINE_HOST=hft-engine
+      - GRPC_ENGINE_PORT=50051
+      - LOG_LEVEL=WARNING
+      - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+    depends_on:
+      - redis
+      - postgres
+      - hft-engine
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+  hft-frontend:
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile.frontend
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8080
+      - LOG_LEVEL=INFO
+    depends_on:
+      - nginx
+    ports:
+      - "3000:3000"
+    networks:
+      - hft-network
+    restart: unless-stopped
+
+networks:
+  hft-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
