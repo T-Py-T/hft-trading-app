@@ -1,0 +1,277 @@
+# hft-trading-app/k8s/postgres-sharded.yaml
+# 3-way PostgreSQL sharding setup for horizontal scaling
+# Each shard is a StatefulSet with dedicated storage
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hft-trading
+---
+
+# Shard 0 Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-shard-0-config
+  namespace: hft-trading
+data:
+  POSTGRES_DB: trading_db
+  POSTGRES_USER: trading_user
+  SHARD_ID: "0"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-shard-0-secret
+  namespace: hft-trading
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: trading_password_shard_0
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shard-0
+  namespace: hft-trading
+  labels:
+    app: postgres-shard-0
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+  selector:
+    app: postgres-shard-0
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-shard-0
+  namespace: hft-trading
+spec:
+  serviceName: postgres-shard-0
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shard-0
+  template:
+    metadata:
+      labels:
+        app: postgres-shard-0
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: postgres-shard-0-config
+        - secretRef:
+            name: postgres-shard-0-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "trading_user"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+
+# Shard 1 Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-shard-1-config
+  namespace: hft-trading
+data:
+  POSTGRES_DB: trading_db
+  POSTGRES_USER: trading_user
+  SHARD_ID: "1"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-shard-1-secret
+  namespace: hft-trading
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: trading_password_shard_1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shard-1
+  namespace: hft-trading
+  labels:
+    app: postgres-shard-1
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+  selector:
+    app: postgres-shard-1
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-shard-1
+  namespace: hft-trading
+spec:
+  serviceName: postgres-shard-1
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shard-1
+  template:
+    metadata:
+      labels:
+        app: postgres-shard-1
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: postgres-shard-1-config
+        - secretRef:
+            name: postgres-shard-1-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "trading_user"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+
+# Shard 2 Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-shard-2-config
+  namespace: hft-trading
+data:
+  POSTGRES_DB: trading_db
+  POSTGRES_USER: trading_user
+  SHARD_ID: "2"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-shard-2-secret
+  namespace: hft-trading
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: trading_password_shard_2
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shard-2
+  namespace: hft-trading
+  labels:
+    app: postgres-shard-2
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+  selector:
+    app: postgres-shard-2
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-shard-2
+  namespace: hft-trading
+spec:
+  serviceName: postgres-shard-2
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shard-2
+  template:
+    metadata:
+      labels:
+        app: postgres-shard-2
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: postgres-shard-2-config
+        - secretRef:
+            name: postgres-shard-2-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "trading_user"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
