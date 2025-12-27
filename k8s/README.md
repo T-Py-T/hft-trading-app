@@ -1,127 +1,116 @@
-# hft-trading-app/k8s/README.md
-# Kubernetes Deployment Guide
+# Kubernetes Deployment
 
-## Overview
+## Quick Start
 
-This directory contains Kubernetes manifests for deploying the HFT trading platform on OrbStack or any Kubernetes cluster.
-
-## Prerequisites
-
-- Kubernetes cluster (1.24+)
-- OrbStack with Kubernetes enabled
-- `kubectl` configured to access your cluster
-- Docker images built and available (or use local images in OrbStack)
-
-## Files
-
-- `namespace.yaml` - HFT trading namespace
-- `postgres.yaml` - PostgreSQL StatefulSet with persistent storage
-- `redis.yaml` - Redis deployment
-- `hft-engine.yaml` - C++ HFT trading engine
-- `hft-backend.yaml` - FastAPI backend (4 replicas)
-- `nginx-ingress.yaml` - Nginx load balancer
-
-## Deployment Steps
-
-### 1. Build Docker Images
+### Using Kustomize (Recommended)
 
 ```bash
-# From ml-trading-app-cpp
-docker build -f Dockerfile.prod -t hft-trading-app-hft-engine:latest .
+# Development environment (1 replica, debug logging)
+./deploy.sh dev
 
-# From ml-trading-app-py
-docker build -f Dockerfile -t hft-trading-app-hft-backend:latest .
+# Or with dry-run to preview
+DRY_RUN=true ./deploy.sh production
+
+# Production environment (4 replicas, info logging)
+./deploy.sh production
 ```
 
-### 2. Load Images into OrbStack
+## Directory Structure
 
-```bash
-# OrbStack automatically loads local Docker images
-# Just ensure they're built in your local Docker daemon
-docker images | grep hft-trading-app
+```
+k8s/
+├── base/                          # Core manifests (shared)
+│   ├── kustomization.yaml
+│   ├── namespace.yaml
+│   ├── postgres.yaml
+│   ├── postgres-sharded.yaml
+│   ├── redis.yaml
+│   ├── hft-engine.yaml
+│   ├── hft-backend.yaml
+│   └── nginx-ingress.yaml
+│
+└── overlays/
+    ├── dev/                       # Development
+    │   └── kustomization.yaml    # 1 replica, debug mode
+    │
+    └── production/                # Production
+        ├── kustomization.yaml    # 4 replicas, full resources
+        └── secrets.yaml          # Secrets template
 ```
 
-### 3. Deploy to Kubernetes
+## What Changes Between Environments
+
+| Setting | Dev | Production |
+|---------|-----|-----------|
+| Backend Replicas | 1 | 4 |
+| Log Level | DEBUG | INFO |
+| Memory Limits | 128Mi | 512Mi |
+| CPU Limits | 250m | 1000m |
+| Image Tags | dev | 1.0.0 |
+
+## Manual Deployment (Without Kustomize)
+
+If you prefer not to use Kustomize:
 
 ```bash
-# Create namespace and deploy all resources
-kubectl apply -f namespace.yaml
-kubectl apply -f postgres.yaml
-kubectl apply -f redis.yaml
-kubectl apply -f hft-engine.yaml
-kubectl apply -f hft-backend.yaml
-kubectl apply -f nginx-ingress.yaml
+# Create namespace
+kubectl apply -f base/namespace.yaml
+
+# Deploy services
+kubectl apply -f base/postgres.yaml
+kubectl apply -f base/redis.yaml
+kubectl apply -f base/hft-engine.yaml
+kubectl apply -f base/hft-backend.yaml
+kubectl apply -f base/nginx-ingress.yaml
 ```
 
-### 4. Verify Deployment
+## Verify Deployment
 
 ```bash
-# Check all resources
+# Check resources
 kubectl get all -n hft-trading
 
-# Watch pod status
+# Watch pods
 kubectl get pods -n hft-trading -w
 
-# Check service endpoints
-kubectl get svc -n hft-trading
+# Check logs
+kubectl logs -f deployment/hft-backend -n hft-trading
+
+# Port forward for access
+kubectl port-forward svc/nginx-ingress 8080:80 -n hft-trading
+# Visit: http://localhost:8080
 ```
-
-### 5. Port Forward for Testing
-
-```bash
-# Access API via local port
-kubectl port-forward -n hft-trading svc/nginx-ingress 8080:8080
-
-# Test health endpoint
-curl http://localhost:8080/health
-```
-
-## Performance Characteristics
-
-### Kubernetes Advantages over Docker Compose
-
-| Aspect | Docker Compose | Kubernetes |
-|--------|---|---|
-| Network | Bridge network (single host) | SDN (distributed) |
-| Isolation | Process namespaces | Full pod isolation |
-| Resource limits | Soft limits | Hard enforced limits |
-| Pod anti-affinity | None | Can spread across nodes |
-| Service discovery | DNS | Kubernetes DNS + load balancing |
-| Storage | Shared | Persistent volumes |
-
-### Expected Performance
-
-With Kubernetes on OrbStack:
-- **Backend pods**: 4 replicas distributed across nodes
-- **Network**: Proper network isolation reduces contention
-- **Storage**: PostgreSQL gets dedicated persistent volume
-- **Expected throughput**: 4,000-5,000 orders/sec (better than Docker)
 
 ## Scaling
 
-### Increase Backend Replicas
+### Scale Backend Replicas
 
 ```bash
-kubectl scale deployment hft-backend -n hft-trading --replicas=8
+# Using Kustomize overlay
+# Edit overlays/production/kustomization.yaml replicas section
+# Then redeploy: ./deploy.sh production
+
+# Or direct kubectl
+kubectl scale deployment hft-backend --replicas=8 -n hft-trading
 ```
 
-### Monitor Performance
+### Scale Database (3-Way Sharding)
 
 ```bash
-# Watch resource usage
-kubectl top pods -n hft-trading
-
-# View logs
-kubectl logs -n hft-trading deployment/hft-backend -f
-
-# Get metrics
-kubectl get metrics -n hft-trading
+# Use postgres-sharded.yaml instead of postgres.yaml
+# Edit overlays/production/kustomization.yaml to reference postgres-sharded.yaml
+# Or deploy separately:
+kubectl apply -f base/postgres-sharded.yaml
 ```
 
 ## Cleanup
 
 ```bash
+# Delete everything
 kubectl delete namespace hft-trading
+
+# Or with Kustomize
+kubectl delete -k overlays/production/
 ```
 
 ## Troubleshooting
@@ -133,23 +122,22 @@ kubectl describe pod <pod-name> -n hft-trading
 kubectl logs <pod-name> -n hft-trading
 ```
 
-### Service connectivity issues
+### Service not accessible
 
 ```bash
-# Test DNS
-kubectl run -it --rm debug --image=busybox --restart=Never -- nslookup hft-backend
-
-# Check endpoints
 kubectl get endpoints -n hft-trading
+kubectl describe svc nginx-ingress -n hft-trading
 ```
 
 ### Database connection issues
 
 ```bash
-# Check postgres service
-kubectl get svc postgres -n hft-trading
-
-# Port forward and test
-kubectl port-forward -n hft-trading svc/postgres 5432:5432
+kubectl port-forward svc/postgres 5432:5432 -n hft-trading
 psql -h localhost -U trading_user -d trading_db
 ```
+
+## References
+
+- See `deploy.sh` for deployment automation
+- See `overlays/` for environment-specific configurations
+- See `base/` for core resource definitions
