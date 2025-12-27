@@ -65,11 +65,11 @@ spec:
             name: postgres-secret
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "500m"
-          limits:
             memory: "512Mi"
             cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
