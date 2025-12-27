@@ -93,7 +93,7 @@ spec:
         - --port
         - "8000"
         - --workers
-        - "4"
+        - "1"
         - --loop
         - uvloop
         - --no-access-log
