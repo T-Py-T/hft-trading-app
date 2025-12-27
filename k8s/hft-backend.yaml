@@ -34,7 +34,7 @@ metadata:
   name: hft-backend
   namespace: hft-trading
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -99,11 +99,11 @@ spec:
         - --no-access-log
         resources:
           requests:
-            memory: "96Mi"
-            cpu: "200m"
+            memory: "64Mi"
+            cpu: "150m"
           limits:
-            memory: "192Mi"
-            cpu: "400m"
+            memory: "128Mi"
+            cpu: "300m"
         livenessProbe:
           httpGet:
             path: /health
