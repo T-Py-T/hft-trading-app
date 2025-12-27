@@ -19,20 +19,29 @@ open http://localhost:8000/docs
 
 ```
 Python FastAPI (8000)
-  ↓ gRPC
-C++ Engine (50051)
-  ↓ TCP
-PostgreSQL (5432) + Redis (6379)
+  ↓ (HTTP/REST)
+Redis (6379) - Order Queue
+  ↓ (async background worker)
+C++ Engine (9001 UDP)
+  ↓ (binary protocol)
+PostgreSQL (5432) - Persistence
 ```
+
+**Pattern:** Fire-and-forget async
+- API accepts order → queues to Redis (instant response)
+- Background worker batches orders
+- Sends batch via UDP to C++ engine
+- Engine processes, returns results
+- DB writes happen async (not on critical path)
 
 ## Components
 
 | Component | Purpose | Tech |
 |-----------|---------|------|
 | Backend | Order management, portfolio tracking | Python 3.9+, FastAPI |
-| Engine | Order matching, risk management | C++17, lock-free |
-| Database | User/order/position persistence | PostgreSQL 15 |
-| Cache | Order queuing | Redis 7 |
+| Engine | Order matching, risk management | C++17, UDP server |
+| Queue | Order queuing & batching | Redis 7 |
+| Database | Persistence | PostgreSQL 15 |
 
 ## Performance
 
