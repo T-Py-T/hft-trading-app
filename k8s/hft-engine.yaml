@@ -51,11 +51,11 @@ spec:
           value: "INFO"
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "500m"
-          limits:
             memory: "512Mi"
             cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"
         livenessProbe:
           tcpSocket:
             port: 50051
