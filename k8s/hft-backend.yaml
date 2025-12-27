@@ -1,0 +1,118 @@
+# hft-trading-app/k8s/hft-backend.yaml
+# FastAPI Backend deployment - multiple replicas with load balancing
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: hft-trading
+data:
+  LOG_LEVEL: "WARNING"
+  PYTHONUNBUFFERED: "1"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hft-backend
+  namespace: hft-trading
+  labels:
+    app: hft-backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+  selector:
+    app: hft-backend
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hft-backend
+  namespace: hft-trading
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: hft-backend
+  template:
+    metadata:
+      labels:
+        app: hft-backend
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - hft-backend
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: hft-backend
+        image: hft-trading-app-hft-backend:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db"
+        - name: REDIS_URL
+          value: "redis://redis:6379/0"
+        - name: GRPC_ENGINE_HOST
+          value: "hft-engine"
+        - name: GRPC_ENGINE_PORT
+          value: "50051"
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: LOG_LEVEL
+        - name: PYTHONUNBUFFERED
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: PYTHONUNBUFFERED
+        command:
+        - uvicorn
+        - backend.app:app
+        - --host
+        - "0.0.0.0"
+        - --port
+        - "8000"
+        - --workers
+        - "4"
+        - --loop
+        - uvloop
+        - --no-access-log
+        resources:
+          requests:
+            memory: "96Mi"
+            cpu: "200m"
+          limits:
+            memory: "192Mi"
+            cpu: "400m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5

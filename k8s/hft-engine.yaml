@@ -1,0 +1,63 @@
+# hft-trading-app/k8s/hft-engine.yaml
+# C++ HFT Trading Engine deployment
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hft-engine
+  namespace: hft-trading
+  labels:
+    app: hft-engine
+spec:
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+    - name: udp
+      port: 9001
+      targetPort: 9001
+      protocol: UDP
+  selector:
+    app: hft-engine
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hft-engine
+  namespace: hft-trading
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hft-engine
+  template:
+    metadata:
+      labels:
+        app: hft-engine
+    spec:
+      containers:
+      - name: hft-engine
+        image: hft-trading-app-hft-engine:latest
+        imagePullPolicy: Never
+        ports:
+        - name: grpc
+          containerPort: 50051
+        - name: udp
+          containerPort: 9001
+          protocol: UDP
+        env:
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+        livenessProbe:
+          tcpSocket:
+            port: 50051
+          initialDelaySeconds: 10
+          periodSeconds: 10

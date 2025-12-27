@@ -1,0 +1,88 @@
+# hft-trading-app/k8s/postgres-statefulset.yaml
+# PostgreSQL StatefulSet with persistent storage
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: hft-trading
+data:
+  POSTGRES_DB: trading_db
+  POSTGRES_USER: trading_user
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: hft-trading
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: trading_password
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: hft-trading
+  labels:
+    app: postgres
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+  selector:
+    app: postgres
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: hft-trading
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        - secretRef:
+            name: postgres-secret
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "trading_user"]
+          initialDelaySeconds: 10
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
