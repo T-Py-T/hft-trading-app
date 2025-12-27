@@ -61,7 +61,6 @@ python -m frontend.dashboard_tui
 - Color-coded P&L (green/red)
 - Responsive layout
 
-See `docs/DASHBOARD_TUI_GUIDE.md` for full documentation.
 
 #### Menu TUI
 
@@ -79,7 +78,6 @@ python -m frontend.tui
 - Monitor portfolio
 - Track orders
 
-See `docs/TUI_GUIDE.md` for details.
 
 ## Architecture
 
@@ -347,13 +345,12 @@ cat docs/PERFORMANCE.md
 
 ## Documentation
 
-- **Dashboard TUI** (NEW): `docs/DASHBOARD_TUI_GUIDE.md` - Modern k9s/btop-style dashboard with charts
-- **Trading TUI**: `docs/TUI_GUIDE.md` - Interactive terminal interface for trading
-- **Integration Testing**: `docs/README-INTEGRATION.md`
-- **C++ Engine**: `../ml-trading-app-cpp/docs/`
-- **Python Backend**: `../ml-trading-app-py/docs/`
+- **Quick Start**: `docs/QUICKSTART.md` - 5-minute setup guide
+- **Performance**: `docs/PERFORMANCE.md` - Benchmarks & scaling
 - **API Reference**: See Swagger UI at `/docs` (running instance)
 - **gRPC API**: `../ml-trading-app-cpp/proto/trading_engine.proto`
+- **C++ Engine**: `../ml-trading-app-cpp/docs/`
+- **Python Backend**: `../ml-trading-app-py/docs/`
 
 ## Troubleshooting
 
