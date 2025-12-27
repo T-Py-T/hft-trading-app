@@ -71,23 +71,17 @@ See `k8s/README.md` for details.
 
 ## Development
 
-### Build Components
-
-```bash
-# C++ Engine
-cd ../ml-trading-app-cpp
-make build && make test
-
-# Python Backend
-cd ../ml-trading-app-py
-pytest backend/tests/ -v
-```
-
-### Run Tests
+### Integration Tests
 
 ```bash
 pytest tests/ -v --cov=tests
 ```
+
+### Component Repositories
+
+For C++ Engine or Python Backend development, see:
+- **C++ Engine**: `../ml-trading-app-cpp/` repository
+- **Python Backend**: `../ml-trading-app-py/` repository
 
 ## Configuration
 
@@ -150,15 +144,6 @@ hft-trading-app/
 ```
 
 ## Status
-
-✓ Production ready
-✓ All tests passing (100%)
-✓ Performance verified
-✓ Deployment ready
-
-## License
-
-Proprietary - All rights reserved
 
 ---
 
