@@ -54,8 +54,9 @@ services:
       - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
       - GRPC_ENGINE_HOST=hft-engine
       - GRPC_ENGINE_PORT=50051
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=WARNING
       - PYTHONUNBUFFERED=1
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
     depends_on:
       postgres:
         condition: service_healthy
