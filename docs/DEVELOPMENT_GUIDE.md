@@ -11,7 +11,7 @@ cd hft-trading-app
 
 # Setup pre-commit
 pip install pre-commit
-pre-commit install --config .pre-commit/.pre-commit-config.yaml
+pre-commit install
 
 # Start development
 git checkout -b feature/my-feature dev
@@ -194,13 +194,13 @@ These hooks require manual fixes:
 
 ```bash
 # Check all files
-pre-commit run --all-files --config .pre-commit/.pre-commit-config.yaml
+pre-commit run --all-files
 
 # Check specific file
-pre-commit run --files src/myfile.py --config .pre-commit/.pre-commit-config.yaml
+pre-commit run --files src/myfile.py
 
 # Run specific hook
-pre-commit run black --config .pre-commit/.pre-commit-config.yaml
+pre-commit run black
 ```
 
 ## Testing
@@ -249,7 +249,7 @@ docker-compose down
 
 ```bash
 # See what failed
-pre-commit run --all-files --config .pre-commit/.pre-commit-config.yaml
+pre-commit run --all-files
 
 # Fix issues
 black .

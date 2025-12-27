@@ -13,13 +13,13 @@ Pre-commit hooks configuration and linting/formatting rules.
 
 ```bash
 pip install pre-commit
-pre-commit install --config .pre-commit/.pre-commit-config.yaml
+pre-commit install
 ```
 
 ## Run Manually
 
 ```bash
-pre-commit run --all-files --config .pre-commit/.pre-commit-config.yaml
+pre-commit run --all-files
 ```
 
 ## Hooks Enabled
