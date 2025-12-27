@@ -83,7 +83,7 @@ But:
 
 1. **Fire-and-Forget**: DB writes don't block orders
 2. **Async Processing**: Backend handles writes in background
-3. **Sharding**: We can shard by symbol (each shard: 1 PostgreSQL)
+3. **Sharding**: We can shard by user_id (each shard: 1 PostgreSQL instance)
 4. **Proven**: Used by massive exchanges at billions of orders/day
 
 ### The Real Bottleneck: Write Throughput
@@ -112,7 +112,7 @@ Solution: **Database sharding**, not NoSQL
 
 1. **You're already optimized**: Fire-and-forget pattern makes DB throughput irrelevant
 2. **ACID is critical**: Money can't be lost, orders must be consistent
-3. **Sharding is simpler**: PostgreSQL sharding by symbol is straightforward
+3. **Sharding is simpler**: PostgreSQL sharding by user_id is straightforward
 4. **Cost effective**: No vendor lock-in
 
 ### Implementation Roadmap
@@ -122,9 +122,10 @@ Solution: **Database sharding**, not NoSQL
 - MongoDB: AuditLogs, CompletedTrades, Snapshots
 - Result: Better log throughput, cleaner schema
 
-**Phase 2 (Scale)**: PostgreSQL sharding
-- 3-way PostgreSQL sharding by symbol
+**Phase 2 (Scale)**: PostgreSQL sharding by USER_ID
+- 3-way sharding: Hash(user_id) % 3 determines shard
 - Each shard: 5-10k writes/sec = 15-30k total
+- All one user's data stays together (good locality)
 - MongoDB cluster for logs and archive
 
 **Phase 3 (Enterprise)**: Full distributed
