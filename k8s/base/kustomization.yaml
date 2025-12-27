@@ -1,0 +1,68 @@
+# k8s/base/kustomization.yaml
+# Base Kustomization - Core manifests for HFT Trading Platform
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Metadata
+metadata:
+  name: hft-trading-base
+  namespace: hft-trading
+
+# Resources
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - redis.yaml
+  - hft-engine.yaml
+  - hft-backend.yaml
+  - nginx-ingress.yaml
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: hft-trading
+  app.kubernetes.io/part-of: hft-trading-platform
+  app.kubernetes.io/version: "1.0.0"
+
+# Common annotations applied to all resources
+commonAnnotations:
+  app.kubernetes.io/managed-by: kustomize
+  documentation: "https://github.com/yourusername/hft-trading-app"
+
+# Namespace
+namespace: hft-trading
+
+# Images
+images:
+  - name: hft-engine
+    newName: hft-trading-app-hft-engine
+    newTag: latest
+  - name: hft-backend
+    newName: hft-trading-app-hft-backend
+    newTag: latest
+  - name: postgres
+    newName: postgres
+    newTag: "15-alpine"
+  - name: redis
+    newName: redis
+    newTag: "7-alpine"
+
+# ConfigMap Generator (for future use)
+configMapGenerator:
+  - name: hft-config
+    literals:
+      - PLATFORM_VERSION="1.0.0"
+      - LOG_FORMAT="json"
+
+# Replicas
+replicas:
+  - name: hft-backend
+    count: 2
+  - name: hft-engine
+    count: 1
+  - name: postgres
+    count: 1
+  - name: redis
+    count: 1
+
+# Patches can be applied here for base-level modifications if needed
