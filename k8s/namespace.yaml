@@ -1,0 +1,9 @@
+# hft-trading-app/k8s/namespace.yaml
+# Kubernetes namespace for HFT trading platform
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hft-trading
+  labels:
+    name: hft-trading
