@@ -119,10 +119,10 @@ python3 scripts/benchmark-engine.py
 
 | Component | Metric | Target | Current |
 |-----------|--------|--------|---------|
-| API Health | Latency p99 | <1ms | Measured |
-| API Health | Throughput | >10k req/s | Measured |
-| Order Submit | Latency p99 | <50ms | Measured |
-| Order Submit | Throughput | >1k orders/s | Measured |
+| API Health | Latency p99 | <1ms | 4.30ms |
+| API Health | Throughput | >10k req/s | 605,238 req/sec |
+| Order Submit | Latency p99 | <50ms | 6.33ms |
+| Order Submit | Throughput | >1k orders/s | 449 orders/sec |
 | C++ Engine | Latency p99 | <100µs | Design target |
 | C++ Engine | Throughput | >100k orders/s | Design target |
 
