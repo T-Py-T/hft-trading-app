@@ -21,19 +21,32 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # C++ HFT Trading Engine - builds from ml-trading-app-cpp
   hft-engine:
-    image: hft-engine:latest
+    build:
+      context: ../ml-trading-app-cpp
+      dockerfile: Dockerfile.prod
     container_name: hft-engine
     ports:
       - "50051:50051"
     environment:
-      - LOG_LEVEL=info
+      - LOG_LEVEL=INFO
     networks:
       - hft-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/50051; echo -e 'GET / HTTP/1.1\\r\\nhost: 127.0.0.1\\r\\n\\r\\n' >&3; exec 3>&-"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./logs/engine:/var/log/trading
 
+  # Python FastAPI Backend - connects to C++ engine via gRPC
   hft-backend:
-    image: hft-backend:latest
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile
     container_name: hft-backend
     ports:
       - "8000:8000"
@@ -41,27 +54,44 @@ services:
       - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
       - GRPC_ENGINE_HOST=hft-engine
       - GRPC_ENGINE_PORT=50051
-      - LOG_LEVEL=info
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
     depends_on:
-      - postgres
-      - hft-engine
+      postgres:
+        condition: service_healthy
+      hft-engine:
+        condition: service_healthy
     networks:
       - hft-network
     restart: unless-stopped
+    volumes:
+      - ./logs/backend:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
+  # Frontend - React/Node.js UI
   hft-frontend:
-    image: hft-frontend:latest
+    build:
+      context: ../ml-trading-app-py
+      dockerfile: Dockerfile.frontend
     container_name: hft-frontend
     stdin_open: true
     tty: true
+    ports:
+      - "3000:3000"
     environment:
-      - BACKEND_URL=http://hft-backend:8000
-      - LOG_LEVEL=info
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+      - LOG_LEVEL=INFO
     depends_on:
       - hft-backend
     networks:
       - hft-network
     restart: unless-stopped
+    volumes:
+      - ./logs/frontend:/app/logs
 
 networks:
   hft-network:
@@ -69,3 +99,4 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
