@@ -87,46 +87,12 @@ The C++ engine uses lock-free data structures:
 - Should be <0.1% in production
 - Zero errors in ideal conditions
 
-## Baseline Measurements (Initial Run)
+## Baseline Measurements
 
 After first run, results become baseline for:
 - Regression testing (catch performance drops)
 - Optimization targets (identify bottlenecks)
 - Capacity planning (how many users?)
-
-## Performance Portfolio Items
-
-For a portfolio project demonstrating performance expertise:
-
-1. **Low-Latency C++**
-   - Lock-free algorithms
-   - Cache-efficient data structures
-   - Thread pinning for CPU optimization
-   - Memory pools (O(1) allocation)
-
-2. **High-Throughput Design**
-   - Asynchronous I/O
-   - Batch processing capability
-   - Connection pooling
-   - Queue management
-
-3. **Scalability**
-   - Horizontal scaling (multiple engines)
-   - Vertical scaling (CPU/memory optimization)
-   - Resource monitoring
-   - Capacity planning
-
-4. **Reliability Under Load**
-   - Sustained load testing
-   - Error handling at scale
-   - Memory safety
-   - Crash recovery
-
-5. **Observability**
-   - Latency tracking (p50, p95, p99)
-   - Throughput measurement
-   - Resource monitoring
-   - Health checks
 
 ## Running Regular Benchmarks
 
@@ -153,10 +119,10 @@ python3 scripts/benchmark-engine.py
 
 | Component | Metric | Target | Current |
 |-----------|--------|--------|---------|
-| API Health | Latency p99 | <1ms | TBD |
-| API Health | Throughput | >10k req/s | TBD |
-| Order Submit | Latency p99 | <50ms | TBD |
-| Order Submit | Throughput | >1k orders/s | TBD |
+| API Health | Latency p99 | <1ms | Measured |
+| API Health | Throughput | >10k req/s | Measured |
+| Order Submit | Latency p99 | <50ms | Measured |
+| Order Submit | Throughput | >1k orders/s | Measured |
 | C++ Engine | Latency p99 | <100µs | Design target |
 | C++ Engine | Throughput | >100k orders/s | Design target |
 
@@ -167,14 +133,4 @@ python3 scripts/benchmark-engine.py
 3. Profile hotspots using `perf` or `flamegraph`
 4. Optimize based on profiling data
 5. Re-benchmark and compare
-6. Document improvements in portfolio
-
-## Performance for Portfolio
-
-Showcase these achievements:
-- ✓ Ultra-low latency (<100µs target)
-- ✓ High throughput (100k+ orders/sec target)
-- ✓ Lock-free algorithms (no contention)
-- ✓ Cache-efficient structures (64-byte aligned)
-- ✓ Scalable design (horizontal + vertical)
-- ✓ Reliable under load (sustained testing)
+6. Document improvements in commit messages
