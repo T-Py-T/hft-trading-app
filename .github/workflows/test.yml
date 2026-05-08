@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: pre-commit/action@v3
+      - uses: pre-commit/action@v3.0.1
         with:
           extra_args: --config .pre-commit/.pre-commit-config.yaml
 
@@ -46,8 +46,8 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - name: Build images
         run: |
-          docker build -t hft-engine:test -f ../ml-trading-app-cpp/Dockerfile.prod . 2>/dev/null || echo "C++ build skipped"
-          docker build -t hft-backend:test -f ../ml-trading-app-py/Dockerfile . 2>/dev/null || echo "Python build skipped"
+          docker build -t hft-engine:test  -f ../ml-trading-app-cpp/Dockerfile.prod   . 2>/dev/null || echo "C++ build skipped (sibling repo not present)"
+          docker build -t hft-backend:test -f ../ml-trading-app-go/Dockerfile.server  . 2>/dev/null || echo "Go build skipped (sibling repo not present)"
 
   e2e-tests:
     name: E2E Tests
