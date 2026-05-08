@@ -17,9 +17,8 @@ configMapGenerator:
     behavior: merge
     literals:
       - ENVIRONMENT="production"
-      - LOG_LEVEL="INFO"
-      - DEBUG="false"
-      - DATABASE_ECHO="false"
+      - LOG_LEVEL="info"
+      - APP_ENV="production"
 
 # Production replicas (high availability)
 replicas:
@@ -27,15 +26,13 @@ replicas:
     count: 4
   - name: postgres
     count: 1
-  - name: redis
-    count: 1
 
 # Production images (stable release tags)
 images:
   - name: hft-engine
     newTag: "1.0.0"
-  - name: hft-backend
-    newTag: "1.0.0"
+  - name: ghcr.io/t-py-t/ml-trading-app-go-server
+    newTag: latest
 
 # Resource constraints for production
 patches:
@@ -76,23 +73,6 @@ patches:
   - target:
       kind: Deployment
       name: hft-engine
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: "512Mi"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: "1000m"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: "1Gi"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: "2000m"
-
-  - target:
-      kind: Deployment
-      name: redis
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/memory

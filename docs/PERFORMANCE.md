@@ -1,5 +1,15 @@
 # Performance Benchmarks & Analysis
 
+> **Historical (Python era).** The numbers below were captured against the
+> Python FastAPI backend that this platform used to ship with. The platform
+> now runs the Go backend from
+> [`ml-trading-app-go`](https://github.com/T-Py-T/ml-trading-app-go), whose
+> in-memory ledger + write-behind outbox pushes `POST /orders` p99 to
+> **465 µs** against dockerized Postgres. The full methodology + raw vegeta
+> reports live in
+> [`ml-trading-app-go/docs/perf.md`](https://github.com/T-Py-T/ml-trading-app-go/blob/main/docs/perf.md).
+> This page is preserved for reference.
+
 ## Test Environment
 
 | Component | Specification |
