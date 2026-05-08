@@ -9,11 +9,12 @@ metadata:
   name: hft-trading-base
   namespace: hft-trading
 
-# Resources
+# Resources — Redis is gone with the Python backend; the Go backend's
+# in-memory ledger + write-behind outbox replaces the Python+Redis
+# fire-and-forget queue.
 resources:
   - namespace.yaml
   - postgres.yaml
-  - redis.yaml
   - hft-engine.yaml
   - hft-backend.yaml
   - nginx-ingress.yaml
@@ -37,15 +38,11 @@ images:
   - name: hft-engine
     newName: hft-trading-app-hft-engine
     newTag: latest
-  - name: hft-backend
-    newName: hft-trading-app-hft-backend
+  - name: ghcr.io/t-py-t/ml-trading-app-go-server
     newTag: latest
   - name: postgres
     newName: postgres
-    newTag: "15-alpine"
-  - name: redis
-    newName: redis
-    newTag: "7-alpine"
+    newTag: "16-alpine"
 
 # ConfigMap Generator (for future use)
 configMapGenerator:
@@ -61,8 +58,6 @@ replicas:
   - name: hft-engine
     count: 1
   - name: postgres
-    count: 1
-  - name: redis
     count: 1
 
 # Patches can be applied here for base-level modifications if needed

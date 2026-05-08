@@ -25,9 +25,9 @@ repos:
       - id: black
         language_version: python3.11
 
-  # Python linting
-  - repo: https://github.com/astral-sh/ruff
-    rev: v0.1.8
+  # Python linting (repo moved from astral-sh/ruff to astral-sh/ruff-pre-commit)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
     hooks:
       - id: ruff
         args: [--fix]
