@@ -1,5 +1,7 @@
-# hft-trading-app/k8s/hft-backend.yaml
-# FastAPI Backend deployment - multiple replicas with load balancing
+# hft-trading-app/k8s/base/hft-backend.yaml
+# Go API server (chi + pgx) — in-memory ledger + write-behind outbox to
+# Postgres. Image is built and published from ml-trading-app-go on every
+# v* tag. See https://github.com/T-Py-T/ml-trading-app-go.
 
 apiVersion: v1
 kind: ConfigMap
@@ -7,8 +9,17 @@ metadata:
   name: backend-config
   namespace: hft-trading
 data:
-  LOG_LEVEL: "WARNING"
-  PYTHONUNBUFFERED: "1"
+  HTTP_ADDR: ":8000"
+  ENGINE_ADDR: "hft-engine:50051"
+  ENGINE_ENABLED: "true"
+  WRITE_BEHIND: "true"
+  OUTBOX_BUFFER: "10000"
+  OUTBOX_BATCH: "50"
+  OUTBOX_FLUSH: "50ms"
+  OUTBOX_LAG_THRESHOLD: "5s"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  APP_ENV: "production"
 
 ---
 apiVersion: v1
@@ -62,59 +73,42 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: hft-backend
-        image: hft-trading-app-hft-backend:latest
-        imagePullPolicy: Never
+        image: ghcr.io/t-py-t/ml-trading-app-go-server:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: backend-config
         env:
         - name: DATABASE_URL
-          value: "postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db"
-        - name: REDIS_URL
-          value: "redis://redis:6379/0"
-        - name: GRPC_ENGINE_HOST
-          value: "hft-engine"
-        - name: GRPC_ENGINE_PORT
-          value: "50051"
-        - name: LOG_LEVEL
           valueFrom:
-            configMapKeyRef:
-              name: backend-config
-              key: LOG_LEVEL
-        - name: PYTHONUNBUFFERED
+            secretKeyRef:
+              name: backend-secrets
+              key: DATABASE_URL
+        - name: JWT_SECRET
           valueFrom:
-            configMapKeyRef:
-              name: backend-config
-              key: PYTHONUNBUFFERED
-        command:
-        - uvicorn
-        - backend.app:app
-        - --host
-        - "0.0.0.0"
-        - --port
-        - "8000"
-        - --workers
-        - "1"
-        - --loop
-        - uvloop
-        - --no-access-log
+            secretKeyRef:
+              name: backend-secrets
+              key: JWT_SECRET
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "250m"
+            memory: "64Mi"
+            cpu: "100m"
           limits:
             memory: "256Mi"
             cpu: "500m"
         livenessProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: 8000
-          initialDelaySeconds: 120
+          initialDelaySeconds: 15
           periodSeconds: 10
           failureThreshold: 5
         readinessProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: 8000
-          initialDelaySeconds: 60
+          initialDelaySeconds: 5
           periodSeconds: 5
           failureThreshold: 10

@@ -17,9 +17,8 @@ configMapGenerator:
     behavior: merge
     literals:
       - ENVIRONMENT="development"
-      - LOG_LEVEL="DEBUG"
-      - DEBUG="true"
-      - DATABASE_ECHO="true"
+      - LOG_LEVEL="debug"
+      - APP_ENV="development"
 
 # Development replicas (fewer resources)
 replicas:
@@ -27,15 +26,13 @@ replicas:
     count: 1
   - name: postgres
     count: 1
-  - name: redis
-    count: 1
 
 # Development images (local or development tags)
 images:
   - name: hft-engine
     newTag: dev
-  - name: hft-backend
-    newTag: dev
+  - name: ghcr.io/t-py-t/ml-trading-app-go-server
+    newTag: latest
 
 # Resource constraints for development
 patches:

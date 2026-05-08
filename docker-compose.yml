@@ -1,23 +1,6 @@
-version: '3.8'
-
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: hft-redis
-    ports:
-      - "6379:6379"
-    networks:
-      - hft-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-    restart: unless-stopped
-    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
-
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: hft-postgres
     environment:
       - POSTGRES_USER=trading_user
@@ -57,60 +40,52 @@ services:
     volumes:
       - ./logs/engine:/var/log/trading
 
-  # Python FastAPI Backend - connects to C++ engine via gRPC
+  # Go API server - in-memory ledger + write-behind outbox to Postgres.
+  # Builds from ../ml-trading-app-go (matches the engine layout); switch
+  # `build:` for `image: ghcr.io/t-py-t/ml-trading-app-go-server:latest`
+  # once a release tag is cut.
   hft-backend:
     build:
-      context: ../ml-trading-app-py
-      dockerfile: Dockerfile
+      context: ../ml-trading-app-go
+      dockerfile: Dockerfile.server
     container_name: hft-backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://trading_user:trading_password@postgres:5432/trading_db
-      - REDIS_URL=redis://hft-redis:6379/0
-      - GRPC_ENGINE_HOST=hft-engine
-      - GRPC_ENGINE_PORT=50051
-      - LOG_LEVEL=WARNING
-      - PYTHONUNBUFFERED=1
-    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop --no-access-log
+      - HTTP_ADDR=:8000
+      - DATABASE_URL=postgres://trading_user:trading_password@postgres:5432/trading_db?sslmode=disable
+      - ENGINE_ENABLED=true
+      - ENGINE_ADDR=hft-engine:50051
+      - WRITE_BEHIND=true
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      - APP_ENV=production
+      - JWT_SECRET=change-me-in-real-deployments
     depends_on:
       postgres:
         condition: service_healthy
       hft-engine:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     networks:
       - hft-network
     restart: unless-stopped
-    volumes:
-      - ./logs/backend:/app/logs
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      # /healthz returns 200 ok under normal load and 503 degraded when
+      # the outbox is over half capacity or stale. Either is "service is
+      # responding"; we only fail the check if the endpoint is unreachable.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/healthz >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  # Frontend - React/Node.js UI
-  hft-frontend:
-    build:
-      context: ../ml-trading-app-py
-      dockerfile: Dockerfile.frontend
-    container_name: hft-frontend
-    stdin_open: true
-    tty: true
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8000
-      - LOG_LEVEL=INFO
-    depends_on:
-      - hft-backend
-    networks:
-      - hft-network
-    restart: unless-stopped
-    volumes:
-      - ./logs/frontend:/app/logs
+# The Go TUI is interactive (Bubble Tea needs a TTY) so it isn't part of
+# the long-running compose stack. Run it directly:
+#
+#   docker run --rm -it \
+#     -e ML_TRADING_API_BASE=http://host.docker.internal:8000 \
+#     ghcr.io/t-py-t/ml-trading-app-go-tui:latest
+#
+# …or use a native binary from the ml-trading-app-go releases page.
 
 networks:
   hft-network:
