@@ -12,16 +12,6 @@ data:
 
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  namespace: hft-trading
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: trading_password
-
----
-apiVersion: v1
 kind: Service
 metadata:
   name: postgres
@@ -53,6 +43,7 @@ spec:
       labels:
         app: postgres
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: postgres
         image: postgres:15-alpine
@@ -67,9 +58,11 @@ spec:
           requests:
             memory: "512Mi"
             cpu: "1000m"
+            ephemeral-storage: "512Mi"
           limits:
             memory: "1Gi"
             cpu: "2000m"
+            ephemeral-storage: "1Gi"
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
@@ -82,7 +75,7 @@ spec:
   - metadata:
       name: postgres-data
     spec:
-      accessModes: [ "ReadWriteOnce" ]
+      accessModes: ["ReadWriteOnce"]
       resources:
         requests:
           storage: 10Gi

@@ -6,6 +6,7 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-yaml
+        args: [--allow-multiple-documents]
       - id: check-added-large-files
         args: ['--maxkb=500']
       - id: check-merge-conflict
@@ -23,7 +24,7 @@ repos:
     rev: 23.12.1
     hooks:
       - id: black
-        language_version: python3.11
+        language_version: python3
 
   # Python linting
   - repo: https://github.com/astral-sh/ruff
@@ -52,6 +53,7 @@ repos:
     hooks:
       - id: markdownlint
         args: [--config, .pre-commit/.markdownlint-cli2.jsonc]
+        exclude: ^docs/(PERFORMANCE|QUICKSTART|RELEASE)\.md$
 
 ci:
   autofix_commit_msg: 'chore: auto-format code with pre-commit'

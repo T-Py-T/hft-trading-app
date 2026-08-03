@@ -5,14 +5,17 @@ High-performance trading platform: C++17 matching engine, Go API + TUI, Postgres
 ## Quick Start
 
 ```bash
+export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+export JWT_SECRET="$(openssl rand -hex 32)"
+export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/trading_db?sslmode=disable"
 docker-compose up -d
 sleep 10
 curl http://localhost:8000/healthz
-```
+```text
 
 ## Architecture
 
-```
+```text
               ┌─────────────────┐
               │   Go TUI        │   ./scripts/tui.sh
               │ (Bubble Tea)    │   or `make tui`
@@ -91,7 +94,9 @@ cd k8s
 ./deploy.sh production   # 4 backend replicas
 ```
 
-Backend pulls `ghcr.io/t-py-t/ml-trading-app-go-server:latest`; a release tag must be cut on `ml-trading-app-go` for the image to exist.
+Backend pulls the published `ghcr.io/t-py-t/ml-trading-app-go-server:v0.1.0`
+release. The engine manifest is pinned to source revision `2a722ff`; build and
+tag that revision before deploying it outside the development cluster.
 
 ## Configuration
 
@@ -105,7 +110,7 @@ Backend pulls `ghcr.io/t-py-t/ml-trading-app-go-server:latest`; a release tag mu
 | `OUTBOX_BATCH`        | `50`                                          | Max events per drainer flush |
 | `OUTBOX_FLUSH`        | `50ms`                                        | Max wait before partial-batch flush |
 | `OUTBOX_LAG_THRESHOLD`| `5s`                                          | `/healthz` flips degraded above this |
-| `JWT_SECRET`          | dev default                                   | Required in `APP_ENV=production` |
+| `JWT_SECRET`          | required                                      | Required secret; never committed |
 | `LOG_LEVEL`           | `info`                                        | `debug` / `info` / `warn` / `error` |
 | `LOG_FORMAT`          | `text`                                        | `text` or `json` |
 | `APP_ENV`             | `development`                                 | `production` enforces JWT-secret guard + refuses `dev@local` registration |
@@ -121,26 +126,31 @@ Backend pulls `ghcr.io/t-py-t/ml-trading-app-go-server:latest`; a release tag mu
 ## Troubleshooting
 
 ### Services won't start
+
 ```bash
 docker-compose logs -f
 docker-compose down -v && docker-compose up -d
 ```
 
 ### Backend healthz reports `degraded`
+
 The outbox is over half capacity or has events older than `OUTBOX_LAG_THRESHOLD`. Inspect:
+
 ```bash
 curl -s http://localhost:8000/healthz | python3 -m json.tool
 ```
+
 Look at `outbox.depth`, `outbox.dropped_total`, `outbox.oldest_pending_ms`. A non-zero `dropped_total` means the in-process synchronous fallback is firing and durability is preserved, but the buffer needs to be bigger.
 
 ### Database issues
+
 ```bash
 docker exec -it hft-postgres psql -U trading_user -d trading_db
 ```
 
 ## Project Structure
 
-```
+```text
 hft-trading-app/
 ├── README.md              # This file
 ├── docker-compose.yml     # Postgres + C++ engine + Go backend

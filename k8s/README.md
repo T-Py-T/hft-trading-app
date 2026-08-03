@@ -3,12 +3,17 @@
 ## Quick Start
 
 ```bash
+# Supply secrets at runtime. Use a secret manager in production.
+export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+export JWT_SECRET="$(openssl rand -hex 32)"
+export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/trading_db?sslmode=disable"
+
 # Development (1 replica, debug logging)
 ./deploy.sh dev
 
 # Production (4 replicas, info logging)
 ./deploy.sh production
-```
+```text
 
 ## Environments
 
@@ -38,7 +43,20 @@ curl http://localhost:8080/healthz   # outbox stats included in payload
 
 ## Image versions
 
-The backend image lives in [ml-trading-app-go](https://github.com/T-Py-T/ml-trading-app-go) and is published to GHCR on every `v*` tag (`ghcr.io/t-py-t/ml-trading-app-go-server`). The base + production overlays both pin to `latest`; pin to a tagged version (e.g. `v0.2.0`) for a real production rollout.
+The backend image lives in [ml-trading-app-go](https://github.com/T-Py-T/ml-trading-app-go)
+and is pinned to its published `v0.1.0` release. The C++ engine image is pinned
+to source revision `2a722ff`; build and tag that revision as
+`hft-trading-app-hft-engine:2a722ff` before deployment.
+
+## Secrets
+
+No Kubernetes Secret manifests are committed. `deploy.sh` requires
+`POSTGRES_PASSWORD`, `DATABASE_URL`, and `JWT_SECRET`, then creates the
+`postgres-secret` and `backend-secrets` objects immediately before applying the
+workloads. Production operators should source those variables from their secret
+manager. The optional sharded PostgreSQL manifest similarly expects
+`postgres-shard-0-secret` through `postgres-shard-2-secret` to be provisioned
+out of band.
 
 ## Cleanup
 
@@ -48,7 +66,7 @@ kubectl delete namespace hft-trading
 
 ## Directory Structure
 
-```
+```text
 k8s/
 ├── base/                    # Core manifests (postgres + C++ engine + Go backend + nginx)
 ├── overlays/

@@ -2,7 +2,7 @@
 # k8s/deploy.sh
 # Kustomize-based deployment script for HFT Trading Platform
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -81,6 +81,39 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "${YELLOW}... (output truncated, full manifest available with kubectl kustomize) ...${NC}"
     exit 0
 fi
+
+for secret_var in POSTGRES_PASSWORD DATABASE_URL JWT_SECRET; do
+    if [[ -z "${!secret_var:-}" ]]; then
+        echo -e "${RED}Error: $secret_var must be set for deployment${NC}"
+        exit 1
+    fi
+done
+
+POSTGRES_PASSWORD_B64=$(printf '%s' "$POSTGRES_PASSWORD" | base64 | tr -d '\n')
+DATABASE_URL_B64=$(printf '%s' "$DATABASE_URL" | base64 | tr -d '\n')
+JWT_SECRET_B64=$(printf '%s' "$JWT_SECRET" | base64 | tr -d '\n')
+
+echo -e "${YELLOW}Applying runtime secrets from the environment...${NC}"
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: $NAMESPACE
+type: Opaque
+data:
+  POSTGRES_PASSWORD: $POSTGRES_PASSWORD_B64
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secrets
+  namespace: $NAMESPACE
+type: Opaque
+data:
+  DATABASE_URL: $DATABASE_URL_B64
+  JWT_SECRET: $JWT_SECRET_B64
+EOF
 
 echo -e "${YELLOW}Applying manifests...${NC}"
 echo "$MANIFEST" | kubectl apply -f -

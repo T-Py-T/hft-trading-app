@@ -4,7 +4,7 @@ services:
     container_name: hft-postgres
     environment:
       - POSTGRES_USER=trading_user
-      - POSTGRES_PASSWORD=trading_password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment or .env}
       - POSTGRES_DB=trading_db
     ports:
       - "5432:5432"
@@ -33,7 +33,14 @@ services:
       - hft-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/50051; echo -e 'GET / HTTP/1.1\\r\\nhost: 127.0.0.1\\r\\n\\r\\n' >&3; exec 3>&-"]
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/50051;
+          echo -e 'GET / HTTP/1.1\r\nhost: 127.0.0.1\r\n\r\n' >&3;
+          exec 3>&-
       interval: 10s
       timeout: 5s
       retries: 3
@@ -42,7 +49,7 @@ services:
 
   # Go API server - in-memory ledger + write-behind outbox to Postgres.
   # Builds from ../ml-trading-app-go (matches the engine layout); switch
-  # `build:` for `image: ghcr.io/t-py-t/ml-trading-app-go-server:latest`
+  # `build:` for `image: ghcr.io/t-py-t/ml-trading-app-go-server:v0.1.0`
   # once a release tag is cut.
   hft-backend:
     build:
@@ -53,14 +60,14 @@ services:
       - "8000:8000"
     environment:
       - HTTP_ADDR=:8000
-      - DATABASE_URL=postgres://trading_user:trading_password@postgres:5432/trading_db?sslmode=disable
+      - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in the environment or .env}
       - ENGINE_ENABLED=true
       - ENGINE_ADDR=hft-engine:50051
       - WRITE_BEHIND=true
       - LOG_LEVEL=info
       - LOG_FORMAT=json
       - APP_ENV=production
-      - JWT_SECRET=change-me-in-real-deployments
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in the environment or .env}
     depends_on:
       postgres:
         condition: service_healthy
