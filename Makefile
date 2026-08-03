@@ -18,8 +18,8 @@ help:
 	@echo "  make clean          - Stop services and cleanup volumes"
 	@echo "  make build-images   - Build container images from source"
 	@echo ""
-	@echo "Tests under tests/ target the historical Python FastAPI surface"
-	@echo "and are pinned for reference until rewritten for the Go backend."
+	@echo "tests/integration_test.py targets the historical Python FastAPI surface"
+	@echo "and is excluded from pytest discovery; manifest checks remain active."
 	@echo "The Go backend's own end-to-end suite runs in ml-trading-app-go CI."
 	@echo ""
 
@@ -44,8 +44,8 @@ health:
 	@echo "Checking service health..."
 	@docker-compose ps --format "table {{.Service}}\t{{.Status}}"
 
-# Legacy pytest targets are kept for reference but skip by default while
-# tests/ is being rewritten for the Go backend. Set SKIP_TESTS=0 to opt in.
+# These Compose-backed targets remain opt-in; pytest itself discovers the active
+# manifest checks and excludes legacy tests/integration_test.py by default.
 SKIP_TESTS ?= 1
 
 setup:
@@ -55,7 +55,7 @@ setup:
 
 test: up setup
 	@if [ "$(SKIP_TESTS)" = "1" ]; then \
-	  echo "tests/ pinned for reference (legacy Python API). Run with SKIP_TESTS=0 to attempt anyway."; \
+	  echo "Compose-backed test target skipped. Run with SKIP_TESTS=0; pytest excludes legacy integration_test.py."; \
 	else \
 	  echo "Running integration tests..."; \
 	  python -m pytest tests/ -v; \
@@ -63,7 +63,7 @@ test: up setup
 
 test-all: up setup
 	@if [ "$(SKIP_TESTS)" = "1" ]; then \
-	  echo "tests/ pinned for reference (legacy Python API). Run with SKIP_TESTS=0 to attempt anyway."; \
+	  echo "Compose-backed test target skipped. Run with SKIP_TESTS=0; pytest excludes legacy integration_test.py."; \
 	else \
 	  echo "Running all integration tests with coverage..."; \
 	  python -m pytest tests/ -v --cov=tests --cov-report=html; \
