@@ -13,7 +13,7 @@ export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/
 
 # Production (4 replicas, info logging)
 ./deploy.sh production
-```text
+```
 
 ## Environments
 

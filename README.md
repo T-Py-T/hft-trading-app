@@ -11,7 +11,7 @@ export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/
 docker-compose up -d
 sleep 10
 curl http://localhost:8000/healthz
-```text
+```
 
 ## Architecture
 
