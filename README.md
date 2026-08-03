@@ -71,6 +71,8 @@ See [`ml-trading-app-go/docs/perf.md`](https://github.com/T-Py-T/ml-trading-app-
 
 ### Local (docker-compose)
 
+Set the three runtime credentials from [Quick Start](#quick-start), then run:
+
 ```bash
 docker-compose up -d            # postgres + C++ engine + Go backend
 curl http://localhost:8000/healthz
@@ -94,15 +96,16 @@ cd k8s
 ./deploy.sh production   # 4 backend replicas
 ```
 
-Backend pulls the published `ghcr.io/t-py-t/ml-trading-app-go-server:v0.1.0`
-release. The engine manifest is pinned to source revision `2a722ff`; build and
-tag that revision before deploying it outside the development cluster.
+Production images are pinned to auditable versions; the development overlay
+expects locally loaded images. See the Kubernetes
+[image version guidance](k8s/README.md#image-versions).
 
 ## Configuration
 
 | Setting               | Default                                       | Purpose |
 |-----------------------|-----------------------------------------------|---------|
-| `DATABASE_URL`        | `postgres://trading_user:…@postgres:5432/…`   | Primary DB |
+| `POSTGRES_PASSWORD`   | required                                      | PostgreSQL password; never committed |
+| `DATABASE_URL`        | required                                      | Primary DB connection URL; never committed |
 | `ENGINE_ADDR`         | `hft-engine:50051`                            | C++ matching engine gRPC |
 | `ENGINE_ENABLED`      | `true`                                        | `false` swaps the in-process mock client |
 | `WRITE_BEHIND`        | `true`                                        | `false` reverts to synchronous PG writes |
@@ -159,10 +162,16 @@ hft-trading-app/
 │   ├── QUICKSTART.md      # 5-minute setup
 │   └── PERFORMANCE.md     # Benchmarks & scaling
 ├── k8s/                   # Kustomize manifests
-├── tests/                 # Integration tests (TODO: rewrite for Go API)
+├── tests/                 # Manifest checks + historical integration reference
 └── scripts/
 ```
 
 ## Migration notes
 
-Tests under `tests/` were written against the historical Python FastAPI surface and target paths (`/api/v1/...`) and request/response shapes that don't match the current Go backend. They are pinned for reference but excluded from `make test` until rewritten. The Go backend's own end-to-end tests live in [`ml-trading-app-go/internal/server`](https://github.com/T-Py-T/ml-trading-app-go/tree/main/internal/server) and run on every PR there.
+`tests/integration_test.py` targets the historical Python FastAPI surface, including
+`/api/v1/...` paths and request/response shapes that do not match the current Go
+backend. It remains reference-only and is excluded from default pytest discovery by
+`pytest.ini`. Active infrastructure regression checks live in
+`tests/test_gitroll_manifests.py`. The Go backend's own end-to-end tests live in
+[`ml-trading-app-go/internal/server`](https://github.com/T-Py-T/ml-trading-app-go/tree/main/internal/server)
+and run on every PR there.

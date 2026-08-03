@@ -1,6 +1,8 @@
 """Regression checks for the GitRoll infrastructure findings."""
 
+import os
 from pathlib import Path
+import subprocess
 
 import yaml
 
@@ -95,3 +97,73 @@ def test_backend_liveness_does_not_use_degrading_health_endpoint() -> None:
         "periodSeconds": 10,
         "failureThreshold": 5,
     }
+
+
+def test_deploy_dry_run_does_not_contact_or_mutate_cluster(tmp_path: Path) -> None:
+    """Preview mode renders locally without requiring credentials or a cluster."""
+    mock_bin = tmp_path / "bin"
+    mock_bin.mkdir()
+    cluster_log = tmp_path / "cluster-calls.log"
+    kubectl = mock_bin / "kubectl"
+    kubectl.write_text(
+        """#!/bin/bash
+set -eu
+case "$1" in
+  version)
+    exit 0
+    ;;
+  kustomize)
+    printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:' '  name: preview'
+    ;;
+  get|create|apply|rollout|logs)
+    printf '%s\n' "$*" >> "$KUBECTL_CLUSTER_LOG"
+    exit 1
+    ;;
+  *)
+    printf 'unexpected kubectl invocation: %s\n' "$*" >&2
+    exit 2
+    ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    kubectl.chmod(0o755)
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "DRY_RUN": "true",
+            "KUBECTL_CLUSTER_LOG": str(cluster_log),
+            "PATH": f"{mock_bin}{os.pathsep}{environment['PATH']}",
+        }
+    )
+    for secret_name in ("POSTGRES_PASSWORD", "DATABASE_URL", "JWT_SECRET"):
+        environment.pop(secret_name, None)
+
+    result = subprocess.run(
+        [str(ROOT / "k8s/deploy.sh"), "production"],
+        cwd=ROOT / "k8s",
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "DRY RUN MODE - Preview only" in result.stdout
+    assert "name: preview" in result.stdout
+    assert not cluster_log.exists(), cluster_log.read_text(encoding="utf-8")
+
+    environment["DRY_RUN"] = "false"
+    result = subprocess.run(
+        [str(ROOT / "k8s/deploy.sh"), "production"],
+        cwd=ROOT / "k8s",
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "POSTGRES_PASSWORD must be set for deployment" in result.stdout
+    assert not cluster_log.exists(), cluster_log.read_text(encoding="utf-8")

@@ -48,9 +48,9 @@ services:
       - ./logs/engine:/var/log/trading
 
   # Go API server - in-memory ledger + write-behind outbox to Postgres.
-  # Builds from ../ml-trading-app-go (matches the engine layout); switch
-  # `build:` for `image: ghcr.io/t-py-t/ml-trading-app-go-server:v0.1.0`
-  # once a release tag is cut.
+  # Builds from ../ml-trading-app-go (matches the engine layout). To use the
+  # published release, replace `build:` with
+  # `image: ghcr.io/t-py-t/ml-trading-app-go-server:v0.1.0`.
   hft-backend:
     build:
       context: ../ml-trading-app-go

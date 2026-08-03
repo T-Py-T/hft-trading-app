@@ -43,18 +43,22 @@ curl http://localhost:8080/healthz   # outbox stats included in payload
 
 ## Image versions
 
-The backend image lives in [ml-trading-app-go](https://github.com/T-Py-T/ml-trading-app-go)
-and is pinned to its published `v0.1.0` release. The C++ engine image is pinned
-to source revision `2a722ff`; build and tag that revision as
-`hft-trading-app-hft-engine:2a722ff` before deployment.
+The base and production manifests pin the backend from
+[ml-trading-app-go](https://github.com/T-Py-T/ml-trading-app-go) to its published
+`v0.1.0` release. They pin the C++ engine to source revision `2a722ff`; build
+and tag that revision as `hft-trading-app-hft-engine:2a722ff` before deployment.
+The development overlay instead expects locally loaded
+`hft-trading-app-hft-engine:dev` and backend `v0.1.0` images and disables image
+pulling for both workloads.
 
 ## Secrets
 
-No Kubernetes Secret manifests are committed. `deploy.sh` requires
-`POSTGRES_PASSWORD`, `DATABASE_URL`, and `JWT_SECRET`, then creates the
-`postgres-secret` and `backend-secrets` objects immediately before applying the
-workloads. Production operators should source those variables from their secret
-manager. The optional sharded PostgreSQL manifest similarly expects
+No Kubernetes Secret manifests are committed. For a non-preview deployment,
+`deploy.sh` requires `POSTGRES_PASSWORD`, `DATABASE_URL`, and `JWT_SECRET`, then
+creates the `postgres-secret` and `backend-secrets` objects immediately before
+applying the workloads. `DRY_RUN=true` only renders a local preview and does not
+require credentials or contact a cluster. Production operators should source those
+variables from their secret manager. The optional sharded PostgreSQL manifest expects
 `postgres-shard-0-secret` through `postgres-shard-2-secret` to be provisioned
 out of band.
 

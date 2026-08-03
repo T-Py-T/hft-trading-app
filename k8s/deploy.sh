@@ -47,31 +47,14 @@ if ! kubectl version --client &> /dev/null; then
 fi
 echo -e "${GREEN}  ✓ kubectl accessible${NC}"
 
-# Step 2: Check kustomize
+# Step 2: Build manifests locally
 echo ""
-echo -e "${BLUE}Step 2: Checking kustomize...${NC}"
-if kubectl kustomize overlays/$ENVIRONMENT > /dev/null 2>&1; then
-    echo -e "${GREEN}  ✓ kustomize build successful${NC}"
-else
+echo -e "${BLUE}Step 2: Building manifests from kustomization...${NC}"
+if ! MANIFEST=$(kubectl kustomize overlays/$ENVIRONMENT); then
     echo -e "${RED}Error: kustomize build failed${NC}"
     exit 1
 fi
-
-# Step 3: Create namespace
-echo ""
-echo -e "${BLUE}Step 3: Ensuring namespace exists...${NC}"
-if kubectl get namespace $NAMESPACE > /dev/null 2>&1; then
-    echo -e "${GREEN}  ✓ Namespace $NAMESPACE exists${NC}"
-else
-    echo -e "${YELLOW}  Creating namespace $NAMESPACE...${NC}"
-    kubectl create namespace $NAMESPACE
-    echo -e "${GREEN}  ✓ Namespace created${NC}"
-fi
-
-# Step 4: Build and apply manifests
-echo ""
-echo -e "${BLUE}Step 4: Building manifests from kustomization...${NC}"
-MANIFEST=$(kubectl kustomize overlays/$ENVIRONMENT)
+echo -e "${GREEN}  ✓ kustomize build successful${NC}"
 
 if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "${YELLOW}DRY RUN MODE - Preview only${NC}"
@@ -93,6 +76,20 @@ POSTGRES_PASSWORD_B64=$(printf '%s' "$POSTGRES_PASSWORD" | base64 | tr -d '\n')
 DATABASE_URL_B64=$(printf '%s' "$DATABASE_URL" | base64 | tr -d '\n')
 JWT_SECRET_B64=$(printf '%s' "$JWT_SECRET" | base64 | tr -d '\n')
 
+# Step 3: Create namespace only after local validation succeeds
+echo ""
+echo -e "${BLUE}Step 3: Ensuring namespace exists...${NC}"
+if kubectl get namespace $NAMESPACE > /dev/null 2>&1; then
+    echo -e "${GREEN}  ✓ Namespace $NAMESPACE exists${NC}"
+else
+    echo -e "${YELLOW}  Creating namespace $NAMESPACE...${NC}"
+    kubectl create namespace $NAMESPACE
+    echo -e "${GREEN}  ✓ Namespace created${NC}"
+fi
+
+# Step 4: Apply runtime credentials and rendered manifests
+echo ""
+echo -e "${BLUE}Step 4: Applying deployment resources...${NC}"
 echo -e "${YELLOW}Applying runtime secrets from the environment...${NC}"
 kubectl apply -f - <<EOF
 apiVersion: v1
