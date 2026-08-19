@@ -2,8 +2,10 @@ extends: default
 rules:
   line-length:
     max: 120
-  indentation:
-    spaces: 2
+  # The repository contains both compact Kubernetes lists and conventionally
+  # indented Compose/Kustomize lists. Structural YAML validation runs
+  # separately, so do not enforce one presentation style across both formats.
+  indentation: disable
   trailing-spaces: enable
   document-start: disable
   comments:

@@ -1,5 +1,6 @@
 pytest==7.4.3
 pytest-asyncio==0.21.1
+PyYAML==6.0.3
 grpcio==1.60.0
 grpcio-tools==1.60.0
 httpx==0.25.0

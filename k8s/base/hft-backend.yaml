@@ -59,6 +59,7 @@ spec:
       labels:
         app: hft-backend
     spec:
+      automountServiceAccountToken: false
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -73,7 +74,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: hft-backend
-        image: ghcr.io/t-py-t/ml-trading-app-go-server:latest
+        image: ghcr.io/t-py-t/ml-trading-app-go-server:v0.1.0
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
@@ -95,12 +96,13 @@ spec:
           requests:
             memory: "64Mi"
             cpu: "100m"
+            ephemeral-storage: "128Mi"
           limits:
             memory: "256Mi"
             cpu: "500m"
+            ephemeral-storage: "512Mi"
         livenessProbe:
-          httpGet:
-            path: /healthz
+          tcpSocket:
             port: 8000
           initialDelaySeconds: 15
           periodSeconds: 10

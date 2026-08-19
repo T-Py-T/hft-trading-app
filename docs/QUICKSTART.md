@@ -75,17 +75,8 @@ Manual run: `pre-commit run --all-files`
 
 ## Testing
 
-**Local** (no Docker):
-```bash
-pytest tests/test_grpc_integration.py -v
-```
-
-**Full stack** (with Docker):
-```bash
-docker-compose up -d
-pytest tests/test_e2e_full_stack.py -v
-docker-compose down
-```
+See the README [migration notes](../README.md#migration-notes) for the current
+test ownership and pytest discovery contract.
 
 ## Protection Rules
 

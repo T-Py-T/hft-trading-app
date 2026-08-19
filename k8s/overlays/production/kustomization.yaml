@@ -4,12 +4,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
+resources:
   - ../../base
 
 # Environment label
-commonLabels:
-  environment: production
+labels:
+  - includeSelectors: true
+    pairs:
+      environment: production
 
 # Production configuration
 configMapGenerator:
@@ -30,9 +32,9 @@ replicas:
 # Production images (stable release tags)
 images:
   - name: hft-engine
-    newTag: "1.0.0"
+    newTag: 2a722ff
   - name: ghcr.io/t-py-t/ml-trading-app-go-server
-    newTag: latest
+    newTag: v0.1.0
 
 # Resource constraints for production
 patches:
@@ -87,19 +89,13 @@ patches:
         path: /spec/template/spec/containers/0/resources/limits/cpu
         value: "2000m"
 
-# Production image pull policy
-imagePullPolicy: IfNotPresent
-
-# Pod disruption budget for high availability
-patchesStrategicMerge:
-  - apiVersion: apps/v1
-    kind: Deployment
-    metadata:
+  - target:
+      kind: Deployment
       name: hft-backend
-    spec:
-      template:
-        metadata:
-          annotations:
-            prometheus.io/scrape: "true"
-            prometheus.io/port: "8000"
-            prometheus.io/path: "/metrics"
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/annotations
+        value:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "8000"
+          prometheus.io/path: "/metrics"

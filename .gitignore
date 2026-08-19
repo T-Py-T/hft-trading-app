@@ -53,6 +53,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+k8s/overlays/*/secrets.yaml
 
 # Docker
 docker-compose.override.yml

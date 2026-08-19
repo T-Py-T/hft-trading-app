@@ -21,16 +21,6 @@ data:
 
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-shard-0-secret
-  namespace: hft-trading
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: trading_password_shard_0
-
----
-apiVersion: v1
 kind: Service
 metadata:
   name: postgres-shard-0
@@ -62,6 +52,7 @@ spec:
       labels:
         app: postgres-shard-0
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: postgres
         image: postgres:15-alpine
@@ -76,9 +67,11 @@ spec:
           requests:
             memory: "256Mi"
             cpu: "500m"
+            ephemeral-storage: "512Mi"
           limits:
             memory: "512Mi"
             cpu: "1000m"
+            ephemeral-storage: "1Gi"
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
@@ -91,7 +84,7 @@ spec:
   - metadata:
       name: postgres-data
     spec:
-      accessModes: [ "ReadWriteOnce" ]
+      accessModes: ["ReadWriteOnce"]
       resources:
         requests:
           storage: 10Gi
@@ -108,16 +101,6 @@ data:
   POSTGRES_DB: trading_db
   POSTGRES_USER: trading_user
   SHARD_ID: "1"
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-shard-1-secret
-  namespace: hft-trading
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: trading_password_shard_1
 
 ---
 apiVersion: v1
@@ -152,6 +135,7 @@ spec:
       labels:
         app: postgres-shard-1
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: postgres
         image: postgres:15-alpine
@@ -166,9 +150,11 @@ spec:
           requests:
             memory: "256Mi"
             cpu: "500m"
+            ephemeral-storage: "512Mi"
           limits:
             memory: "512Mi"
             cpu: "1000m"
+            ephemeral-storage: "1Gi"
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
@@ -181,7 +167,7 @@ spec:
   - metadata:
       name: postgres-data
     spec:
-      accessModes: [ "ReadWriteOnce" ]
+      accessModes: ["ReadWriteOnce"]
       resources:
         requests:
           storage: 10Gi
@@ -198,16 +184,6 @@ data:
   POSTGRES_DB: trading_db
   POSTGRES_USER: trading_user
   SHARD_ID: "2"
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-shard-2-secret
-  namespace: hft-trading
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: trading_password_shard_2
 
 ---
 apiVersion: v1
@@ -242,6 +218,7 @@ spec:
       labels:
         app: postgres-shard-2
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: postgres
         image: postgres:15-alpine
@@ -256,9 +233,11 @@ spec:
           requests:
             memory: "256Mi"
             cpu: "500m"
+            ephemeral-storage: "512Mi"
           limits:
             memory: "512Mi"
             cpu: "1000m"
+            ephemeral-storage: "1Gi"
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
@@ -271,7 +250,7 @@ spec:
   - metadata:
       name: postgres-data
     spec:
-      accessModes: [ "ReadWriteOnce" ]
+      accessModes: ["ReadWriteOnce"]
       resources:
         requests:
           storage: 10Gi
