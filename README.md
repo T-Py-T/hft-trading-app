@@ -5,6 +5,9 @@ High-performance trading platform: C++17 matching engine, Go API + TUI, Postgres
 ## Quick Start
 
 ```bash
+export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+export JWT_SECRET="$(openssl rand -hex 32)"
+export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/trading_db?sslmode=disable"
 docker-compose up -d
 sleep 10
 curl http://localhost:8000/healthz
@@ -12,7 +15,7 @@ curl http://localhost:8000/healthz
 
 ## Architecture
 
-```
+```text
               ┌─────────────────┐
               │   Go TUI        │   ./scripts/tui.sh
               │ (Bubble Tea)    │   or `make tui`
@@ -68,6 +71,8 @@ See [`ml-trading-app-go/docs/perf.md`](https://github.com/T-Py-T/ml-trading-app-
 
 ### Local (docker-compose)
 
+Set the three runtime credentials from [Quick Start](#quick-start), then run:
+
 ```bash
 docker-compose up -d            # postgres + C++ engine + Go backend
 curl http://localhost:8000/healthz
@@ -91,13 +96,16 @@ cd k8s
 ./deploy.sh production   # 4 backend replicas
 ```
 
-Backend pulls `ghcr.io/t-py-t/ml-trading-app-go-server:latest`; a release tag must be cut on `ml-trading-app-go` for the image to exist.
+Production images are pinned to auditable versions; the development overlay
+expects locally loaded images. See the Kubernetes
+[image version guidance](k8s/README.md#image-versions).
 
 ## Configuration
 
 | Setting               | Default                                       | Purpose |
 |-----------------------|-----------------------------------------------|---------|
-| `DATABASE_URL`        | `postgres://trading_user:…@postgres:5432/…`   | Primary DB |
+| `POSTGRES_PASSWORD`   | required                                      | PostgreSQL password; never committed |
+| `DATABASE_URL`        | required                                      | Primary DB connection URL; never committed |
 | `ENGINE_ADDR`         | `hft-engine:50051`                            | C++ matching engine gRPC |
 | `ENGINE_ENABLED`      | `true`                                        | `false` swaps the in-process mock client |
 | `WRITE_BEHIND`        | `true`                                        | `false` reverts to synchronous PG writes |
@@ -105,7 +113,7 @@ Backend pulls `ghcr.io/t-py-t/ml-trading-app-go-server:latest`; a release tag mu
 | `OUTBOX_BATCH`        | `50`                                          | Max events per drainer flush |
 | `OUTBOX_FLUSH`        | `50ms`                                        | Max wait before partial-batch flush |
 | `OUTBOX_LAG_THRESHOLD`| `5s`                                          | `/healthz` flips degraded above this |
-| `JWT_SECRET`          | dev default                                   | Required in `APP_ENV=production` |
+| `JWT_SECRET`          | required                                      | Required secret; never committed |
 | `LOG_LEVEL`           | `info`                                        | `debug` / `info` / `warn` / `error` |
 | `LOG_FORMAT`          | `text`                                        | `text` or `json` |
 | `APP_ENV`             | `development`                                 | `production` enforces JWT-secret guard + refuses `dev@local` registration |
@@ -121,26 +129,31 @@ Backend pulls `ghcr.io/t-py-t/ml-trading-app-go-server:latest`; a release tag mu
 ## Troubleshooting
 
 ### Services won't start
+
 ```bash
 docker-compose logs -f
 docker-compose down -v && docker-compose up -d
 ```
 
 ### Backend healthz reports `degraded`
+
 The outbox is over half capacity or has events older than `OUTBOX_LAG_THRESHOLD`. Inspect:
+
 ```bash
 curl -s http://localhost:8000/healthz | python3 -m json.tool
 ```
+
 Look at `outbox.depth`, `outbox.dropped_total`, `outbox.oldest_pending_ms`. A non-zero `dropped_total` means the in-process synchronous fallback is firing and durability is preserved, but the buffer needs to be bigger.
 
 ### Database issues
+
 ```bash
 docker exec -it hft-postgres psql -U trading_user -d trading_db
 ```
 
 ## Project Structure
 
-```
+```text
 hft-trading-app/
 ├── README.md              # This file
 ├── docker-compose.yml     # Postgres + C++ engine + Go backend
@@ -149,10 +162,16 @@ hft-trading-app/
 │   ├── QUICKSTART.md      # 5-minute setup
 │   └── PERFORMANCE.md     # Benchmarks & scaling
 ├── k8s/                   # Kustomize manifests
-├── tests/                 # Integration tests (TODO: rewrite for Go API)
+├── tests/                 # Manifest checks + historical integration reference
 └── scripts/
 ```
 
 ## Migration notes
 
-Tests under `tests/` were written against the historical Python FastAPI surface and target paths (`/api/v1/...`) and request/response shapes that don't match the current Go backend. They are pinned for reference but excluded from `make test` until rewritten. The Go backend's own end-to-end tests live in [`ml-trading-app-go/internal/server`](https://github.com/T-Py-T/ml-trading-app-go/tree/main/internal/server) and run on every PR there.
+`tests/integration_test.py` targets the historical Python FastAPI surface, including
+`/api/v1/...` paths and request/response shapes that do not match the current Go
+backend. It remains reference-only and is excluded from default pytest discovery by
+`pytest.ini`. Active infrastructure regression checks live in
+`tests/test_gitroll_manifests.py`. The Go backend's own end-to-end tests live in
+[`ml-trading-app-go/internal/server`](https://github.com/T-Py-T/ml-trading-app-go/tree/main/internal/server)
+and run on every PR there.

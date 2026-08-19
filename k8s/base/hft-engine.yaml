@@ -36,10 +36,11 @@ spec:
       labels:
         app: hft-engine
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: hft-engine
-        image: hft-trading-app-hft-engine:latest
-        imagePullPolicy: Never
+        image: hft-engine:2a722ff
+        imagePullPolicy: IfNotPresent
         ports:
         - name: grpc
           containerPort: 50051
@@ -53,9 +54,11 @@ spec:
           requests:
             memory: "512Mi"
             cpu: "1000m"
+            ephemeral-storage: "256Mi"
           limits:
             memory: "1Gi"
             cpu: "2000m"
+            ephemeral-storage: "1Gi"
         livenessProbe:
           tcpSocket:
             port: 50051

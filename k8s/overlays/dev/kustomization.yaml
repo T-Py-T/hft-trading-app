@@ -4,12 +4,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
+resources:
   - ../../base
 
 # Environment label
-commonLabels:
-  environment: development
+labels:
+  - includeSelectors: true
+    pairs:
+      environment: development
 
 # Configuration for development
 configMapGenerator:
@@ -32,10 +34,26 @@ images:
   - name: hft-engine
     newTag: dev
   - name: ghcr.io/t-py-t/ml-trading-app-go-server
-    newTag: latest
+    newTag: v0.1.0
 
 # Resource constraints for development
 patches:
+  - target:
+      kind: Deployment
+      name: hft-backend
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
+  - target:
+      kind: Deployment
+      name: hft-engine
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
   - target:
       kind: Deployment
       name: hft-backend
@@ -86,6 +104,3 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/cpu
         value: "1000m"
-
-# Enable local image loading (no image pull)
-imagePullPolicy: Never

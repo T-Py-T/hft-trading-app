@@ -4,6 +4,8 @@
 
 set -e
 
+: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before setting up the test database}"
+
 echo "Setting up test database..."
 
 # Wait for PostgreSQL to be ready
@@ -19,7 +21,7 @@ done
 
 # Create test database
 echo "Creating test database..."
-PGPASSWORD=trading_password psql -h localhost -U trading_user -d trading_db <<EOF
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h localhost -U trading_user -d trading_db <<EOF
 CREATE DATABASE trading_db_test;
 EOF
 

@@ -12,7 +12,7 @@ spec:
   type: LoadBalancer
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 8080
       protocol: TCP
       name: http
     - port: 8080
@@ -108,11 +108,11 @@ spec:
       labels:
         app: nginx-ingress
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: nginx
         image: nginx:alpine
         ports:
-        - containerPort: 80
         - containerPort: 8080
         volumeMounts:
         - name: nginx-config-volume
@@ -123,9 +123,11 @@ spec:
           requests:
             memory: "64Mi"
             cpu: "100m"
+            ephemeral-storage: "64Mi"
           limits:
             memory: "128Mi"
             cpu: "200m"
+            ephemeral-storage: "256Mi"
       volumes:
       - name: nginx-config-volume
         configMap:

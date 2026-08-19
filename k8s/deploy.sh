@@ -2,7 +2,7 @@
 # k8s/deploy.sh
 # Kustomize-based deployment script for HFT Trading Platform
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -47,17 +47,36 @@ if ! kubectl version --client &> /dev/null; then
 fi
 echo -e "${GREEN}  ✓ kubectl accessible${NC}"
 
-# Step 2: Check kustomize
+# Step 2: Build manifests locally
 echo ""
-echo -e "${BLUE}Step 2: Checking kustomize...${NC}"
-if kubectl kustomize overlays/$ENVIRONMENT > /dev/null 2>&1; then
-    echo -e "${GREEN}  ✓ kustomize build successful${NC}"
-else
+echo -e "${BLUE}Step 2: Building manifests from kustomization...${NC}"
+if ! MANIFEST=$(kubectl kustomize overlays/$ENVIRONMENT); then
     echo -e "${RED}Error: kustomize build failed${NC}"
     exit 1
 fi
+echo -e "${GREEN}  ✓ kustomize build successful${NC}"
 
-# Step 3: Create namespace
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo -e "${YELLOW}DRY RUN MODE - Preview only${NC}"
+    echo ""
+    echo "$MANIFEST" | head -100
+    echo ""
+    echo -e "${YELLOW}... (output truncated, full manifest available with kubectl kustomize) ...${NC}"
+    exit 0
+fi
+
+for secret_var in POSTGRES_PASSWORD DATABASE_URL JWT_SECRET; do
+    if [[ -z "${!secret_var:-}" ]]; then
+        echo -e "${RED}Error: $secret_var must be set for deployment${NC}"
+        exit 1
+    fi
+done
+
+POSTGRES_PASSWORD_B64=$(printf '%s' "$POSTGRES_PASSWORD" | base64 | tr -d '\n')
+DATABASE_URL_B64=$(printf '%s' "$DATABASE_URL" | base64 | tr -d '\n')
+JWT_SECRET_B64=$(printf '%s' "$JWT_SECRET" | base64 | tr -d '\n')
+
+# Step 3: Create namespace only after local validation succeeds
 echo ""
 echo -e "${BLUE}Step 3: Ensuring namespace exists...${NC}"
 if kubectl get namespace $NAMESPACE > /dev/null 2>&1; then
@@ -68,19 +87,30 @@ else
     echo -e "${GREEN}  ✓ Namespace created${NC}"
 fi
 
-# Step 4: Build and apply manifests
+# Step 4: Apply runtime credentials and rendered manifests
 echo ""
-echo -e "${BLUE}Step 4: Building manifests from kustomization...${NC}"
-MANIFEST=$(kubectl kustomize overlays/$ENVIRONMENT)
-
-if [[ "$DRY_RUN" == "true" ]]; then
-    echo -e "${YELLOW}DRY RUN MODE - Preview only${NC}"
-    echo ""
-    echo "$MANIFEST" | head -100
-    echo ""
-    echo -e "${YELLOW}... (output truncated, full manifest available with kubectl kustomize) ...${NC}"
-    exit 0
-fi
+echo -e "${BLUE}Step 4: Applying deployment resources...${NC}"
+echo -e "${YELLOW}Applying runtime secrets from the environment...${NC}"
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: $NAMESPACE
+type: Opaque
+data:
+  POSTGRES_PASSWORD: $POSTGRES_PASSWORD_B64
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secrets
+  namespace: $NAMESPACE
+type: Opaque
+data:
+  DATABASE_URL: $DATABASE_URL_B64
+  JWT_SECRET: $JWT_SECRET_B64
+EOF
 
 echo -e "${YELLOW}Applying manifests...${NC}"
 echo "$MANIFEST" | kubectl apply -f -
