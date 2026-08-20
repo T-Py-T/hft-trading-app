@@ -1,177 +1,165 @@
-# HFT Trading Platform
+# Trading Platform Orchestration
 
-High-performance trading platform: C++17 matching engine, Go API + TUI, Postgres durability.
+Compose and Kubernetes orchestration for a componentized trading platform. The
+repository defines how the Go API/TUI, C++ matching engine, and PostgreSQL
+services are configured, connected, health-checked, and deployed.
 
-## Quick Start
+The Go and C++ implementations are maintained in private component
+repositories. This repository contains their integration contract: image and
+build references, ports, environment variables, probes, resource limits,
+deployment overlays, manifest tests, and operator notes.
+
+## Architecture
+
+```text
+┌───────────────────────────────────────────────────────────┐
+│ Compose and Kubernetes orchestration                      │
+│ configuration · service wiring · probes · resource limits │
+└───────────────┬───────────────────┬───────────────────────┘
+                │                   │
+        HTTP / WebSocket          gRPC
+                │                   │
+       ┌────────▼────────┐   ┌──────▼─────────┐
+       │ Go API and TUI  │   │ C++ engine    │
+       └────────┬────────┘   └────────────────┘
+                │
+       ┌────────▼────────┐
+       │ PostgreSQL      │
+       └─────────────────┘
+```
+
+| Component | Defined here |
+| --- | --- |
+| Orchestration | Compose file, Kubernetes bases and overlays, runtime inputs, and tests |
+| Go API/TUI | Build context or pinned image, service configuration, HTTP/WebSocket port, and health probe |
+| C++ engine | Build context or pinned image, gRPC address, resources, and health probe |
+| PostgreSQL | Official image, persistent storage, credentials, and connection URL |
+
+## Repository layout
+
+```text
+docker-compose.yml        # local multi-service composition
+k8s/
+├── base/                 # shared Kubernetes resources
+└── overlays/             # development and production settings
+tests/                    # manifest and configuration regressions
+scripts/                  # setup and load-generation helpers
+docs/
+├── QUICKSTART.md         # development workflow
+├── RELEASE.md            # release process
+└── PERFORMANCE.md        # benchmark requirements and result format
+```
+
+## Validate the public configuration
+
+Create a local environment and run the active manifest tests:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt pre-commit
+
+python -m pytest tests/test_gitroll_manifests.py -v
+pre-commit run --config .pre-commit/.pre-commit-config.yaml --all-files
+```
+
+Render the Kubernetes overlays without applying them:
+
+```bash
+cd k8s
+DRY_RUN=true ./deploy.sh dev
+DRY_RUN=true ./deploy.sh production
+```
+
+These commands check the files in this repository. Starting the complete
+platform additionally requires access to the component source or published
+component images.
+
+## Run the full stack
+
+Place the three repositories next to one another so the Compose build contexts
+resolve:
+
+```text
+workspace/
+├── trading-platform-orchestration/
+├── ml-trading-app-go/
+└── ml-trading-app-cpp/
+```
+
+From `trading-platform-orchestration/`, create runtime credentials and start
+the composition:
 
 ```bash
 export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
 export JWT_SECRET="$(openssl rand -hex 32)"
 export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/trading_db?sslmode=disable"
+
+docker-compose config
 docker-compose up -d
-sleep 10
+docker-compose ps
 curl http://localhost:8000/healthz
 ```
 
-## Architecture
-
-```text
-              ┌─────────────────┐
-              │   Go TUI        │   ./scripts/tui.sh
-              │ (Bubble Tea)    │   or `make tui`
-              └────────┬────────┘
-                       │ HTTP + WebSocket (8000)
-              ┌────────▼────────┐
-              │  Go Backend     │   in-memory ledger
-              │ (chi + pgx)     │   write-behind outbox
-              └────┬─────┬──────┘
-                   │     │
-       gRPC (50051)│     │ async pgx batches
-                   │     ▼
-        ┌──────────▼──┐  ┌─────────────────┐
-        │ C++ Engine  │  │   PostgreSQL    │
-        │ (matching)  │  │  (durability)   │
-        └─────────────┘  └─────────────────┘
-```
-
-**Pattern:** in-memory ledger + write-behind outbox.
-
-- API takes `POST /orders` → engine.Submit (sub-ms gRPC) → in-memory ledger → outbox.enqueue → 201 response
-- Background drainer batches up to 50 events / 50 ms into one Postgres transaction with one COMMIT per batch — fsync amortizes to O(1)/batch
-- Reads always hit the in-memory ledger, which is hydrated from Postgres at boot
-- Graceful shutdown drains the outbox before pgxpool close; `/healthz` reports outbox depth + lag and flips to `degraded` when over half capacity or older than `OUTBOX_LAG_THRESHOLD`
-
-Result: `POST /orders` p99 = **465 µs** against dockerized Postgres (down from p99 = 78 ms with the synchronous-PG path). Full report in [`ml-trading-app-go/docs/perf.md`](https://github.com/T-Py-T/ml-trading-app-go/blob/main/docs/perf.md).
-
-## Components
-
-| Component | Repository | Purpose | Tech |
-|-----------|------------|---------|------|
-| API + TUI | [`ml-trading-app-go`](https://github.com/T-Py-T/ml-trading-app-go) | Order management, portfolio, terminal client | Go 1.26, chi, pgx, Bubble Tea |
-| Engine    | [`ml-trading-app-cpp`](https://github.com/T-Py-T/ml-trading-app-cpp) | Order matching, risk | C++17, gRPC |
-| Database  | (this repo)  | Persistence | PostgreSQL 16 |
-
-The historical Python implementation lives in [`ml-trading-app-py`](https://github.com/T-Py-T/ml-trading-app-py) and is preserved for reference; the platform now runs the Go backend.
-
-## Performance
-
-| Metric | Value | Notes |
-|--------|-------|-------|
-| `POST /orders` p99 | 465 µs | 10 traders, 500 req/s, dockerized Postgres |
-| `POST /orders` p95 | 242 µs | same |
-| `GET /portfolio` p99 | 258 µs | same |
-| `GET /market/quote` p99 | 236 µs | same |
-| Order success rate | 100% | 7,500-request runs |
-
-vs the Python PRD budgets: `< 50 ms` order submission → comfortably under by 100×; `< 10 ms` position query → under by 38×.
-
-See [`ml-trading-app-go/docs/perf.md`](https://github.com/T-Py-T/ml-trading-app-go/blob/main/docs/perf.md) for the full methodology.
-
-## Deployment
-
-### Local (docker-compose)
-
-Set the three runtime credentials from [Quick Start](#quick-start), then run:
-
-```bash
-docker-compose up -d            # postgres + C++ engine + Go backend
-curl http://localhost:8000/healthz
-```
-
-The Go TUI is interactive (TTY required) so it isn't part of the long-running compose stack. Run it directly:
-
-```bash
-docker run --rm -it \
-  -e ML_TRADING_API_BASE=http://host.docker.internal:8000 \
-  ghcr.io/t-py-t/ml-trading-app-go-tui:latest
-```
-
-…or grab a native binary from [`ml-trading-app-go` releases](https://github.com/T-Py-T/ml-trading-app-go/releases).
-
-### Kubernetes
-
-```bash
-cd k8s
-./deploy.sh dev          # 1 backend replica
-./deploy.sh production   # 4 backend replicas
-```
-
-Production images are pinned to auditable versions; the development overlay
-expects locally loaded images. See the Kubernetes
-[image version guidance](k8s/README.md#image-versions).
+Secrets are required runtime inputs and must not be committed to the repository.
 
 ## Configuration
 
-| Setting               | Default                                       | Purpose |
-|-----------------------|-----------------------------------------------|---------|
-| `POSTGRES_PASSWORD`   | required                                      | PostgreSQL password; never committed |
-| `DATABASE_URL`        | required                                      | Primary DB connection URL; never committed |
-| `ENGINE_ADDR`         | `hft-engine:50051`                            | C++ matching engine gRPC |
-| `ENGINE_ENABLED`      | `true`                                        | `false` swaps the in-process mock client |
-| `WRITE_BEHIND`        | `true`                                        | `false` reverts to synchronous PG writes |
-| `OUTBOX_BUFFER`       | `10000`                                       | Outbox channel capacity |
-| `OUTBOX_BATCH`        | `50`                                          | Max events per drainer flush |
-| `OUTBOX_FLUSH`        | `50ms`                                        | Max wait before partial-batch flush |
-| `OUTBOX_LAG_THRESHOLD`| `5s`                                          | `/healthz` flips degraded above this |
-| `JWT_SECRET`          | required                                      | Required secret; never committed |
-| `LOG_LEVEL`           | `info`                                        | `debug` / `info` / `warn` / `error` |
-| `LOG_FORMAT`          | `text`                                        | `text` or `json` |
-| `APP_ENV`             | `development`                                 | `production` enforces JWT-secret guard + refuses `dev@local` registration |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `POSTGRES_PASSWORD` | required | PostgreSQL password |
+| `DATABASE_URL` | required | API database connection URL |
+| `JWT_SECRET` | required | Application signing secret |
+| `ENGINE_ADDR` | `hft-engine:50051` | Matching-engine gRPC endpoint |
+| `ENGINE_ENABLED` | `true` | Enable the engine client |
+| `WRITE_BEHIND` | `true` | Enable buffered database writes |
+| `OUTBOX_BUFFER` | `10000` | Outbox channel capacity |
+| `OUTBOX_BATCH` | `50` | Maximum write batch size |
+| `OUTBOX_FLUSH` | `50ms` | Partial-batch flush interval |
+| `OUTBOX_LAG_THRESHOLD` | `5s` | Health threshold for outbox lag |
+| `LOG_LEVEL` | `info` | Logging level |
+| `LOG_FORMAT` | `text` | Logging format |
+| `APP_ENV` | `development` | Runtime environment selector |
 
-## Ports & Services
+## Ports
 
-| Service     | Port  | Protocol |
-|-------------|-------|----------|
-| Backend API | 8000  | HTTP + WebSocket |
-| C++ Engine  | 50051 | gRPC |
-| PostgreSQL  | 5432  | TCP |
+| Service | Port | Protocol |
+| --- | --- | --- |
+| Backend API | `8000` | HTTP and WebSocket |
+| Matching engine | `50051` | gRPC |
+| PostgreSQL | `5432` | TCP |
 
 ## Troubleshooting
 
-### Services won't start
+If Compose cannot build a component, confirm both sibling source directories
+exist and inspect the resolved build contexts:
 
 ```bash
-docker-compose logs -f
-docker-compose down -v && docker-compose up -d
+docker-compose config
 ```
 
-### Backend healthz reports `degraded`
-
-The outbox is over half capacity or has events older than `OUTBOX_LAG_THRESHOLD`. Inspect:
+If services start but do not become healthy:
 
 ```bash
-curl -s http://localhost:8000/healthz | python3 -m json.tool
+docker-compose ps
+docker-compose logs
 ```
 
-Look at `outbox.depth`, `outbox.dropped_total`, `outbox.oldest_pending_ms`. A non-zero `dropped_total` means the in-process synchronous fallback is firing and durability is preserved, but the buffer needs to be bigger.
-
-### Database issues
+For Kubernetes configuration failures, render the chosen overlay first and
+then rerun the manifest tests:
 
 ```bash
-docker exec -it hft-postgres psql -U trading_user -d trading_db
+cd k8s
+DRY_RUN=true ./deploy.sh dev
+cd ..
+python -m pytest tests/test_gitroll_manifests.py -v
 ```
 
-## Project Structure
+`tests/integration_test.py` targets an older Python API and is excluded by
+`pytest.ini`. The active checks are in `tests/test_gitroll_manifests.py`.
 
-```text
-hft-trading-app/
-├── README.md              # This file
-├── docker-compose.yml     # Postgres + C++ engine + Go backend
-├── Makefile               # Compose orchestration + integration tests
-├── docs/
-│   ├── QUICKSTART.md      # 5-minute setup
-│   └── PERFORMANCE.md     # Benchmarks & scaling
-├── k8s/                   # Kustomize manifests
-├── tests/                 # Manifest checks + historical integration reference
-└── scripts/
-```
+## License
 
-## Migration notes
-
-`tests/integration_test.py` targets the historical Python FastAPI surface, including
-`/api/v1/...` paths and request/response shapes that do not match the current Go
-backend. It remains reference-only and is excluded from default pytest discovery by
-`pytest.ini`. Active infrastructure regression checks live in
-`tests/test_gitroll_manifests.py`. The Go backend's own end-to-end tests live in
-[`ml-trading-app-go/internal/server`](https://github.com/T-Py-T/ml-trading-app-go/tree/main/internal/server)
-and run on every PR there.
+The orchestration, tests, scripts, and documentation in this repository are
+available under the [MIT License](LICENSE). The private Go and C++ component
+repositories are separate works and are not covered by this license.
