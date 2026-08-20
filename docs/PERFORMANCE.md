@@ -1,210 +1,116 @@
-# Performance Benchmarks & Analysis
+# Public Performance Evidence Contract
 
-> **Historical (Python era).** The numbers below were captured against the
-> Python FastAPI backend that this platform used to ship with. The platform
-> now runs the Go backend from
-> [`ml-trading-app-go`](https://github.com/T-Py-T/ml-trading-app-go), whose
-> in-memory ledger + write-behind outbox pushes `POST /orders` p99 to
-> **465 µs** against dockerized Postgres. The full methodology + raw vegeta
-> reports live in
-> [`ml-trading-app-go/docs/perf.md`](https://github.com/T-Py-T/ml-trading-app-go/blob/main/docs/perf.md).
-> This page is preserved for reference.
+## Current status
 
-## Test Environment
+This public repository contains no verified benchmark outcome.
 
-| Component | Specification |
-|-----------|--------------|
-| Platform | OrbStack (Docker on macOS) |
-| OS | macOS 13 (arm64) |
-| CPU | Apple Silicon M-series |
-| Memory | 16GB available |
-| Network | Localhost (127.0.0.1) |
+Earlier revisions mixed current-looking latency, throughput, scaling, and
+success-rate statements with historical experiments and private component
+evidence. The complete raw outputs, exact component revisions, runner
+environment, and public source-to-binary chain were not retained here, so those
+figures are not independently reproducible from this repository and are not
+repeated as current results.
 
-## Performance Results
+The public repository currently supports inspection of the integration surface
+and validation of its manifests. It does not support an anonymous rebuild or
+performance audit of the complete platform because the Go API/TUI and C++
+engine source repositories are private.
 
-### API Backend (FastAPI + Uvicorn)
+## What the public checks establish
 
-| Test | Throughput | Latency (avg) | Latency (p99) | Error Rate |
-|------|-----------|--------------|--------------|-----------|
-| Health Check | 605,238 req/sec | 1.65ms | 4.30ms | 0.0% |
-| Concurrent (10 clients) | 642,142 req/sec | 1.56ms | 4.29ms | 0.0% |
-| Sustained Load (10s) | 540 req/sec | 1.85ms | 4.64ms | 0.0% |
-| Order Submission | 449 orders/sec | 2.23ms | 6.33ms | 0.0% |
+The active test suite can establish that:
 
-**Key Findings:**
-- Health check throughput: 64x above requirement (605k vs 10k target)
-- Latency p99: 2.3x better than requirement (4.3ms vs 10ms target)
-- Zero errors across 8,000+ requests
-- Stable under sustained load
+- tracked Kubernetes workload manifests satisfy the repository's security and
+  resource-bound contracts;
+- application image references use the versions expected by the manifest
+  tests;
+- Compose and Kubernetes configuration require credentials at runtime instead
+  of committing values;
+- the deployment helper's dry-run path renders locally without contacting or
+  mutating a cluster;
+- the public documentation and integration configuration pass their configured
+  formatting, link, and secret-pattern checks.
 
-### Order Throughput by Configuration
+These checks do not establish latency, throughput, capacity, scalability,
+success rate, durability, or component implementation quality.
 
-| Configuration | Throughput | Bottleneck |
-|---|---|---|
-| Single Backend, Single DB | 2,600 ops/sec | PostgreSQL |
-| 4 Backends, Single DB | 3,163 ops/sec | PostgreSQL (contention) |
-| 8 Backends, Single DB | 2,689 ops/sec | PostgreSQL (degradation) |
-| 3-Way Sharded DB | 7,800 ops/sec | Predictable 3x improvement |
+## Required artifacts for a future measured claim
 
-**Analysis:** Adding more backends WITHOUT sharding causes contention on the single PostgreSQL instance. Sharding eliminates this bottleneck.
+A quantified performance outcome may be described as publicly verified only
+when the public repository retains all of the following in the same revision:
 
-### C++ Engine Specifications
+1. **Claim definition** — metric name, unit, population, percentile or
+   aggregation, success criteria, and error definition.
+2. **Exact revisions** — this repository commit plus immutable source revisions
+   and image digests for every measured component.
+3. **Public build path** — Dockerfiles, build commands, dependency locks, and
+   any patches required to reproduce the measured binaries.
+4. **Environment record** — hardware, operating system, architecture,
+   container runtime, database version, kernel settings, and resource limits.
+5. **Topology and configuration** — replica count, database layout, networking,
+   runtime flags, and sanitized non-secret configuration.
+6. **Workload definition** — request mix, input data, warm-up policy, duration,
+   concurrency or arrival model, and the exact public load-generator revision.
+7. **Executable command** — one documented command or script that runs the
+   measurement without relying on an untracked local step.
+8. **Raw output** — machine-readable, unedited tool output retained in the
+   repository or a durable public artifact tied to the commit.
+9. **Derivation** — a public script that converts raw output into every table,
+   chart, percentile, and comparison used in the claim.
+10. **Run identity** — timestamp, runner identity, exit status, logs, and a
+    stable public link to the retained execution record.
+11. **Repetition and uncertainty** — repeat count, run-to-run variation, and
+    any discarded run with its reason.
+12. **Baseline provenance** — the same artifact set for any baseline or
+    before/after comparison.
 
-| Metric | Design Target | Status |
-|--------|---------------|--------|
-| Order Latency (p99) | <100 microseconds | ✓ Verified |
-| Throughput | >100,000 orders/sec | ✓ Design target |
-| Lock-Free Memory | O(1) allocation | ✓ Verified |
-| Order Book Lookup | O(log n) | ✓ std::map |
-| Memory Footprint | ~256MB | ✓ Verified |
-| Cache Alignment | 64-byte aligned | ✓ Verified |
+If one item is absent, the number must be labeled as a target, projection, or
+historical unverified observation rather than a publicly verified outcome.
 
-## Bottleneck Analysis
+## Suggested public artifact layout
 
-### PostgreSQL (Primary Bottleneck)
+Future evidence should be added without overwriting prior runs:
 
-**Finding:** Single PostgreSQL instance maxes out at ~2,600 writes/sec
-
-**Reason:** Database disk I/O, ACID compliance, connection pooling limits
-
-**Solution:** Horizontal sharding (user_id based)
-
-**Result:** 3x throughput per additional shard (linear scaling)
-
-### Network (NOT a Bottleneck)
-
-**Finding:** Docker/Kubernetes networking adds <1ms latency
-
-**Evidence:**
-- Docker Compose (bridge network): Same throughput as Kubernetes
-- Kubernetes (ClusterIP services): Identical latency
-
-**Conclusion:** Network is not limiting factor
-
-### Python Backend (NOT a Bottleneck)
-
-**Finding:** Single backend can theoretically handle 10k+ req/sec
-
-**Evidence:**
-- Health check: 605k req/sec
-- Concurrent: 642k req/sec
-- Only 449 order submissions/sec due to database I/O wait
-
-**Conclusion:** Backend is IO-bound on database writes, scales perfectly with sharding
-
-### C++ Engine (Capable of 100k+)
-
-**Finding:** C++ engine is not saturated in current testing
-
-**Evidence:**
-- Never exceeded ~30% CPU utilization during tests
-- Design target of 100k orders/sec never approached
-- No latency degradation even with 40 concurrent clients
-
-**Conclusion:** Engine has headroom for future scaling
-
-## Performance Scaling Roadmap
-
-### Current: Single Instance
-```
-2,600 orders/sec
-└─ Bottleneck: Single PostgreSQL (2,600 writes/sec limit)
+```text
+benchmarks/<date>-<scenario>/
+├── README.md             # Claim, scope, exact command, and limitations
+├── revisions.json        # Repository SHAs and image digests
+├── environment.json      # Runner and dependency inventory
+├── config/               # Sanitized workload and service configuration
+├── raw/                  # Immutable tool outputs
+├── derive/               # Scripts that generate summaries
+└── summary/              # Generated tables and charts
 ```
 
-### Phase 1: 3-Way Database Sharding
-```
-7,800 orders/sec (3x improvement)
-├─ 3 PostgreSQL instances (2,600 each)
-├─ Hash(user_id) % 3 routing
-└─ Bottleneck: Still PostgreSQL (but distributed)
-```
+The run README should link every published number to its raw input and
+derivation command. Generated summaries must be reproducible from the retained
+raw files.
 
-### Phase 2: 6-Way Database Sharding
-```
-15,600 orders/sec (6x improvement)
-├─ 6 PostgreSQL instances (2,600 each)
-├─ Hash(user_id) % 6 routing
-└─ Bottleneck: Still PostgreSQL (but distributed)
-```
+## Review gate for restoring a claim
 
-### Phase 3: Distributed Caching
-```
-100,000+ orders/sec (40x improvement)
-├─ Keep database writes async
-├─ Redis cluster for real-time data
-├─ Python backend scales to 20+ instances
-└─ Bottleneck: Network/C++ Engine
-```
+Before adding a measured result to the root README:
 
-## How to Run Benchmarks
+- confirm the complete artifact set is public and reachable without special
+  repository access;
+- reproduce the summary from the retained raw output in a clean checkout;
+- verify that the documented environment and revisions match the run record;
+- state limitations and distinguish observed results from targets;
+- link the claim directly to the retained artifact directory, not to a private
+  component repository;
+- run the repository's manifest, formatting, Markdown, link, secret-pattern,
+  and diff checks.
 
-### 1. API Throughput Test
-```bash
-cd hft-trading-app
-python3 tests/performance_benchmark.py
-```
+## Non-goals of this change
 
-### 2. Order Submission Load Test
-```bash
-python3 scripts/distributed_load_test.py \
-  --clients 40 \
-  --duration 60 \
-  --api-url http://localhost:8000
-```
+This evidence contract does not:
 
-### 3. Single Database Performance
-```bash
-# Ensure using single database (not sharded)
-export USE_DATABASE_SHARDING=false
-python3 scripts/distributed_load_test.py --clients 20 --duration 30
-```
+- run or invent a benchmark;
+- validate or publish private component source;
+- claim that an image tag proves the corresponding source revision;
+- deploy the stack or contact a trading service;
+- turn configuration values, capacity settings, or design targets into
+  measured outcomes;
+- restore any historical headline metric.
 
-### 4. Compare: Single vs Sharded
-```bash
-# Test single database
-export USE_DATABASE_SHARDING=false
-python3 scripts/distributed_load_test.py --clients 20
-
-# Test 3-way sharded
-export USE_DATABASE_SHARDING=true
-python3 scripts/distributed_load_test.py --clients 20
-# Should see 3x improvement
-```
-
-## Key Takeaways
-
-1. **PostgreSQL is the bottleneck** - Single instance maxes at 2,600 writes/sec
-2. **Sharding works perfectly** - Linear scaling with number of shards
-3. **No latency overhead** - No cross-shard joins means same latency at 3x throughput
-4. **Network is fine** - Not a limiting factor in current tests
-5. **Backend is scalable** - Can handle massive load with proper database backing
-6. **C++ engine has headroom** - Never approaches design limits in current tests
-
-## Recommendations
-
-### Immediate (For 7.8k ops/sec)
-- Deploy 3-way PostgreSQL sharding
-- Estimated effort: 1-2 days
-- Expected result: 3x throughput
-
-### Short-term (For 15k+ ops/sec)
-- Scale to 6-way sharding
-- Effort: Same as 3-way
-- Result: 6x throughput
-
-### Long-term (For 100k+ ops/sec)
-- Implement distributed caching layer (Redis)
-- Scale Python backend to 10+ instances
-- Effort: 1-2 weeks
-- Result: 40x throughput
-
-## Conclusion
-
-The HFT Trading Platform is well-architected:
-- ✓ Backend is efficient (not bottleneck)
-- ✓ C++ engine is powerful (not bottleneck)
-- ✓ Network is fast (not bottleneck)
-- ✓ Database is limiting factor (expected in transactional systems)
-
-Scaling to 7.8k ops/sec is straightforward: implement 3-way sharding.
-Scaling beyond requires distributed systems patterns (caching, replication).
+Until a future run satisfies this contract, the honest public result remains:
+**no verified benchmark outcome is published by this repository.**
