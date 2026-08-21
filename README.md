@@ -1,7 +1,9 @@
-# HFT Trading Platform
+# Trading Platform Orchestration
 
-Public integration and deployment configuration for a componentized trading
-platform.
+Public integration, deployment, and operator contract for a componentized
+trading platform. The repository's value is the production boundary around the
+services: Compose and Kubernetes wiring, runtime inputs, health probes,
+resource constraints, manifest regression tests, and release documentation.
 
 This repository contains the Docker Compose and Kubernetes orchestration,
 runtime configuration contracts, manifest regression tests, and operator
@@ -65,7 +67,7 @@ source-reproduction path or benchmark procedure.
 ## Architecture
 
 ```text
-Public hft-trading-app repository
+Public trading-platform-orchestration repository
 ┌────────────────────────────────────────────────────────────┐
 │ Compose and Kubernetes manifests                           │
 │ runtime inputs · service wiring · probes · manifest tests  │
@@ -162,6 +164,20 @@ The values below are integration settings, not benchmark results.
 | `LOG_LEVEL` | `info` | Logging level |
 | `LOG_FORMAT` | `text` | Logging format |
 | `APP_ENV` | `development` | Runtime environment selector |
+
+## Validation model
+
+Agents run the manifest tests and pre-commit suite locally before publishing a
+branch. GitHub Actions runs only as a pull-request merge gate, avoiding routine
+pipeline spend on branch pushes:
+
+```bash
+python -m pytest tests/test_gitroll_manifests.py -v
+pre-commit run --config .pre-commit/.pre-commit-config.yaml --all-files
+```
+
+The repository does not currently include a repository-wide license file. The
+private component implementations remain outside this public source boundary.
 
 ## Ports and Services
 

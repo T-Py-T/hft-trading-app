@@ -30,7 +30,7 @@ labels:
 # Common annotations applied to all resources
 commonAnnotations:
   app.kubernetes.io/managed-by: kustomize
-  documentation: "https://github.com/yourusername/hft-trading-app"
+  documentation: "https://github.com/T-Py-T/trading-platform-orchestration"
 
 # Namespace
 namespace: hft-trading

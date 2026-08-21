@@ -44,7 +44,7 @@ def sample_order():
         "side": "BUY",
         "type": "MARKET",
         "quantity": 100,
-        "price": 150.00
+        "price": 150.00,
     }
 
 
@@ -56,5 +56,5 @@ def sample_limit_order():
         "side": "SELL",
         "type": "LIMIT",
         "quantity": 50,
-        "price": 375.50
+        "price": 375.50,
     }
