@@ -8,7 +8,9 @@ import sys
 import os
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'ml-trading-app-py'))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "..", "ml-trading-app-py")
+)
 
 from sqlalchemy.ext.asyncio import create_async_engine
 from backend.database.models import Base
@@ -35,6 +37,7 @@ async def init_db():
     except Exception as e:
         print(f"✗ Error initializing database: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

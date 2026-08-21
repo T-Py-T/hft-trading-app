@@ -70,7 +70,9 @@ async def test_health_check():
     print("\n=== TEST 1: Health Check ===")
     try:
         response = await CLIENT.get("/health")
-        assert response.status_code == 200, f"Health check failed: {response.status_code}"
+        assert (
+            response.status_code == 200
+        ), f"Health check failed: {response.status_code}"
         data = response.json()
         assert data["status"] == "healthy"
         print(f"✓ Backend is healthy: {data}")
@@ -105,7 +107,9 @@ async def test_order_placement(metrics: PerformanceMetrics):
 
             if response.status_code == 201:
                 data = response.json()
-                print(f"  Order {i+1}: {data.get('id', 'N/A')} placed in {elapsed:.2f}ms")
+                print(
+                    f"  Order {i+1}: {data.get('id', 'N/A')} placed in {elapsed:.2f}ms"
+                )
                 success_count += 1
             else:
                 print(f"  Order {i+1}: Failed with status {response.status_code}")
@@ -203,11 +207,13 @@ async def test_rapid_order_stream(metrics: PerformanceMetrics):
             if (i + 1) % 10 == 0:
                 print(f"  Submitted {i+1}/{rapid_orders} orders...")
 
-        except Exception as e:
+        except Exception:
             metrics.record_failure()
 
     success_rate = (success_count / rapid_orders) * 100
-    print(f"✓ Submitted {success_count}/{rapid_orders} orders ({success_rate:.1f}% success)")
+    print(
+        f"✓ Submitted {success_count}/{rapid_orders} orders ({success_rate:.1f}% success)"
+    )
     return success_count > (rapid_orders * 0.9)  # 90% success threshold
 
 
