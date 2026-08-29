@@ -1,139 +1,69 @@
 # Trading Platform Orchestration
 
-Public integration, deployment, and operator contract for a componentized
-trading platform. The repository's value is the production boundary around the
-services: Compose and Kubernetes wiring, runtime inputs, health probes,
-resource constraints, manifest regression tests, and release documentation.
+Compose and Kubernetes orchestration for a componentized trading platform. The
+repository defines how the Go API/TUI, C++ matching engine, and PostgreSQL
+services are configured, connected, health-checked, and deployed.
 
-This repository contains the Docker Compose and Kubernetes orchestration,
-runtime configuration contracts, manifest regression tests, and operator
-documentation. It does not contain the Go API/TUI or C++ matching-engine
-implementations. Those component source repositories are private, so an
-anonymous reader can inspect this integration surface but cannot rebuild or
-audit the complete application from public source alone.
+The Go and C++ implementations are maintained in private component
+repositories. This repository contains their integration contract: image and
+build references, ports, environment variables, probes, resource limits,
+deployment overlays, manifest tests, and operator notes.
 
-## Evidence status
+## Architecture
 
-- Publicly inspectable here: orchestration, image references, runtime inputs,
-  deployment previews, active manifest tests, and documentation.
-- Not publicly inspectable here: component implementation, component test
-  suites, and the source-to-image build chain.
-- No latency, throughput, scaling, or success-rate outcome is claimed as
-  publicly verified. See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the
-  evidence required before a measured claim may be restored.
+```text
+┌───────────────────────────────────────────────────────────┐
+│ Compose and Kubernetes orchestration                      │
+│ configuration · service wiring · probes · resource limits │
+└───────────────┬───────────────────┬───────────────────────┘
+                │                   │
+        HTTP / WebSocket          gRPC
+                │                   │
+       ┌────────▼────────┐   ┌──────▼─────────┐
+       │ Go API and TUI  │   │ C++ engine    │
+       └────────┬────────┘   └────────────────┘
+                │
+       ┌────────▼────────┐
+       │ PostgreSQL      │
+       └─────────────────┘
+```
 
-## Quick Start
+| Component | Defined here |
+| --- | --- |
+| Orchestration | Compose file, Kubernetes bases and overlays, runtime inputs, and tests |
+| Go API/TUI | Build context or pinned image, service configuration, HTTP/WebSocket port, and health probe |
+| C++ engine | Build context or pinned image, gRPC address, resources, and health probe |
+| PostgreSQL | Official image, persistent storage, credentials, and connection URL |
 
-### Public repository checks
+## Repository layout
 
-These checks exercise the material that is present in this repository. They do
-not start the trading services or measure performance.
+```text
+docker-compose.yml        # local multi-service composition
+k8s/
+├── base/                 # shared Kubernetes resources
+└── overlays/             # development and production settings
+tests/                    # manifest and configuration regressions
+scripts/                  # setup and load-generation helpers
+docs/
+├── QUICKSTART.md         # development workflow
+├── RELEASE.md            # release process
+└── PERFORMANCE.md        # benchmark requirements and result format
+```
+
+## Validate the public configuration
+
+Create a local environment and run the active manifest tests:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -r requirements.txt pre-commit
+
 python -m pytest tests/test_gitroll_manifests.py -v
 pre-commit run --config .pre-commit/.pre-commit-config.yaml --all-files
 ```
 
-### Full-stack operator setup
-
-`docker-compose.yml` builds the Go and C++ services from sibling directories
-that are not included in this public repository. The following workflow is for
-an operator who already has authorized access to both private component
-checkouts:
-
-```text
-workspace/
-├── hft-trading-app/
-├── ml-trading-app-go/   # private component source
-└── ml-trading-app-cpp/  # private component source
-```
-
-From `hft-trading-app/`, supply runtime credentials and start the composition:
-
-```bash
-export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
-export JWT_SECRET="$(openssl rand -hex 32)"
-export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/trading_db?sslmode=disable"
-docker-compose up -d
-curl http://localhost:8000/healthz
-```
-
-These commands describe the integration contract; they are not an anonymous
-source-reproduction path or benchmark procedure.
-
-## Architecture
-
-```text
-Public trading-platform-orchestration repository
-┌────────────────────────────────────────────────────────────┐
-│ Compose and Kubernetes manifests                           │
-│ runtime inputs · service wiring · probes · manifest tests  │
-└───────────────┬─────────────────┬──────────────────────────┘
-                │                 │
-        HTTP / WebSocket       gRPC
-                │                 │
-       ┌────────▼────────┐  ┌─────▼──────────┐
-       │ Go API and TUI  │  │ C++ engine     │
-       │ private source  │  │ private source │
-       └────────┬────────┘  └────────────────┘
-                │
-       ┌────────▼────────┐
-       │ PostgreSQL      │
-       │ public image    │
-       └─────────────────┘
-```
-
-The public manifests document the service boundaries, ports, environment
-variables, health probes, resource limits, and image tags. Statements about
-component internals belong to the component repositories and are not treated
-as independently verified by this integration repository.
-
-## Components
-
-| Component | Public evidence in this repository | Source availability |
-|-----------|------------------------------------|---------------------|
-| Integration surface | Compose, Kubernetes, tests, and operator docs | Public here |
-| Go API and TUI | Service configuration and pinned backend image reference | Private source |
-| C++ matching engine | Service configuration and pinned engine tag | Private source |
-| PostgreSQL | Runtime configuration using the official PostgreSQL image | Public upstream image |
-
-Private component names are identifiers for the integration boundary, not
-links offered as public supporting evidence.
-
-## Performance
-
-This repository currently publishes no verified performance result. Earlier
-headline latency, throughput, scaling, and success-rate figures were not
-accompanied here by the complete source revisions, environment, commands, raw
-output, and derivation artifacts needed for independent review.
-
-The [performance evidence contract](docs/PERFORMANCE.md) records the current
-status, non-goals, and the exact artifact set required for any future measured
-claim.
-
-## Deployment
-
-### Local Compose
-
-Compose requires the authorized sibling component checkouts described in
-[Quick Start](#full-stack-operator-setup). It is not a standalone public build.
-
-```bash
-docker-compose up -d
-curl http://localhost:8000/healthz
-```
-
-The interactive TUI is also supplied by the private Go component and is not
-part of this repository.
-
-### Kubernetes
-
-The Kubernetes manifests are public and can be inspected or rendered locally.
-A real deployment additionally requires component images, a cluster, and
-runtime credentials; none are created by this README.
+Render the Kubernetes overlays without applying them:
 
 ```bash
 cd k8s
@@ -141,92 +71,95 @@ DRY_RUN=true ./deploy.sh dev
 DRY_RUN=true ./deploy.sh production
 ```
 
-See [k8s/README.md](k8s/README.md) for image and runtime-input contracts. A dry
-run renders manifests locally; it does not prove component behavior or a
-performance outcome.
+These commands check the files in this repository. Starting the complete
+platform additionally requires access to the component source or published
+component images.
+
+## Run the full stack
+
+Place the three repositories next to one another so the Compose build contexts
+resolve:
+
+```text
+workspace/
+├── trading-platform-orchestration/
+├── ml-trading-app-go/
+└── ml-trading-app-cpp/
+```
+
+From `trading-platform-orchestration/`, create runtime credentials and start
+the composition:
+
+```bash
+export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+export JWT_SECRET="$(openssl rand -hex 32)"
+export DATABASE_URL="postgres://trading_user:${POSTGRES_PASSWORD}@postgres:5432/trading_db?sslmode=disable"
+
+docker-compose config
+docker-compose up -d
+docker-compose ps
+curl http://localhost:8000/healthz
+```
+
+Secrets are required runtime inputs and must not be committed to the repository.
 
 ## Configuration
 
-The values below are integration settings, not benchmark results.
-
-| Setting | Default | Purpose |
-|---------|---------|---------|
-| `POSTGRES_PASSWORD` | required | PostgreSQL password; never committed |
-| `DATABASE_URL` | required | Primary database connection URL; never committed |
-| `ENGINE_ADDR` | `hft-engine:50051` | Engine service endpoint |
-| `ENGINE_ENABLED` | `true` | Enables the configured engine client |
-| `WRITE_BEHIND` | `true` | Enables the configured write-behind mode |
-| `OUTBOX_BUFFER` | `10000` | Configured outbox channel capacity |
-| `OUTBOX_BATCH` | `50` | Configured maximum batch size |
-| `OUTBOX_FLUSH` | `50ms` | Configured partial-batch interval |
-| `OUTBOX_LAG_THRESHOLD` | `5s` | Configured health threshold |
-| `JWT_SECRET` | required | Application secret; never committed |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `POSTGRES_PASSWORD` | required | PostgreSQL password |
+| `DATABASE_URL` | required | API database connection URL |
+| `JWT_SECRET` | required | Application signing secret |
+| `ENGINE_ADDR` | `hft-engine:50051` | Matching-engine gRPC endpoint |
+| `ENGINE_ENABLED` | `true` | Enable the engine client |
+| `WRITE_BEHIND` | `true` | Enable buffered database writes |
+| `OUTBOX_BUFFER` | `10000` | Outbox channel capacity |
+| `OUTBOX_BATCH` | `50` | Maximum write batch size |
+| `OUTBOX_FLUSH` | `50ms` | Partial-batch flush interval |
+| `OUTBOX_LAG_THRESHOLD` | `5s` | Health threshold for outbox lag |
 | `LOG_LEVEL` | `info` | Logging level |
 | `LOG_FORMAT` | `text` | Logging format |
 | `APP_ENV` | `development` | Runtime environment selector |
 
-## Validation model
-
-Agents run the manifest tests and pre-commit suite locally before publishing a
-branch. GitHub Actions runs only as a pull-request merge gate, avoiding routine
-pipeline spend on branch pushes:
-
-```bash
-python -m pytest tests/test_gitroll_manifests.py -v
-pre-commit run --config .pre-commit/.pre-commit-config.yaml --all-files
-```
-
-The repository does not currently include a repository-wide license file. The
-private component implementations remain outside this public source boundary.
-
-## Ports and Services
+## Ports
 
 | Service | Port | Protocol |
-|---------|------|----------|
-| Backend API | 8000 | HTTP and WebSocket |
-| C++ engine | 50051 | gRPC |
-| PostgreSQL | 5432 | TCP |
+| --- | --- | --- |
+| Backend API | `8000` | HTTP and WebSocket |
+| Matching engine | `50051` | gRPC |
+| PostgreSQL | `5432` | TCP |
 
 ## Troubleshooting
 
-### Services will not start
-
-Confirm that both authorized sibling component checkouts exist and that all
-required runtime inputs are set, then inspect the composition:
+If Compose cannot build a component, confirm both sibling source directories
+exist and inspect the resolved build contexts:
 
 ```bash
 docker-compose config
+```
+
+If services start but do not become healthy:
+
+```bash
 docker-compose ps
 docker-compose logs
 ```
 
-### Manifest validation
-
-Run the active public regression suite without starting a service:
+For Kubernetes configuration failures, render the chosen overlay first and
+then rerun the manifest tests:
 
 ```bash
+cd k8s
+DRY_RUN=true ./deploy.sh dev
+cd ..
 python -m pytest tests/test_gitroll_manifests.py -v
 ```
 
-## Project Structure
+`tests/integration_test.py` targets an older Python API and is excluded by
+`pytest.ini`. The active checks are in `tests/test_gitroll_manifests.py`.
 
-```text
-hft-trading-app/
-├── README.md              # Public scope and integration contract
-├── docker-compose.yml     # PostgreSQL plus private-source component builds
-├── Makefile               # Compose orchestration and active test notes
-├── docs/
-│   ├── QUICKSTART.md      # Repository development workflow
-│   └── PERFORMANCE.md     # Public performance evidence contract
-├── k8s/                   # Kustomize manifests and dry-run deployment helper
-├── tests/                 # Active manifest checks and historical reference
-└── scripts/               # Public orchestration and load-generation helpers
-```
+## License
 
-## Migration notes
-
-`tests/integration_test.py` targets a historical Python FastAPI surface and is
-excluded from default pytest discovery by `pytest.ini`. Active public
-infrastructure regression checks live in `tests/test_gitroll_manifests.py`.
-Component-owned end-to-end tests are outside this public repository and are not
-presented here as public evidence.
+The orchestration, tests, scripts, and documentation in this repository are
+available under the [MIT License](LICENSE). The private Go and C++ component
+repositories are separate works and are not covered by this license.
